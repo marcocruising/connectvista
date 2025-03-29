@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/dialog';
 import TagBadge from '@/components/shared/TagBadge';
 import { IndividualForm } from '@/components/forms/IndividualForm';
+import ConversationTimeline from '@/components/shared/ConversationTimeline';
+import { ConversationForm } from '@/components/forms/ConversationForm';
 
 const IndividualDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +41,8 @@ const IndividualDetail = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview');
+  const [isConversationFormOpen, setIsConversationFormOpen] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
   useEffect(() => {
     fetchIndividuals();
@@ -62,6 +66,11 @@ const IndividualDetail = () => {
   });
 
   console.log("Individual conversations found:", individualConversations.length, individualConversations);
+
+  const handleEditConversation = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setIsConversationFormOpen(true);
+  };
 
   if (!individual) {
     return (
@@ -203,52 +212,28 @@ const IndividualDetail = () => {
           </div>
         </TabsContent>
         
-        <TabsContent value="conversations">
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversations</CardTitle>
-              <CardDescription>All interactions with {individual.first_name} {individual.last_name}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {individualConversations.length === 0 ? (
-                <p className="text-gray-500">No conversations recorded with this contact yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {individualConversations.map(conversation => (
-                    <div key={conversation.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <Link to={`/conversations/${conversation.id}`} className="font-medium hover:text-blue-600">
-                            {conversation.title}
-                          </Link>
-                          <p className="text-gray-500 text-sm">
-                            {format(new Date(conversation.date), 'MMMM d, yyyy')}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {conversation.tags && conversation.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {conversation.tags.map(tag => (
-                            <TagBadge key={tag.id} tag={tag} size="sm" />
-                          ))}
-                        </div>
-                      )}
-                      
-                      <p className="mt-2 text-gray-700">{conversation.summary}</p>
-                      
-                      {conversation.nextSteps && (
-                        <div className="mt-2">
-                          <p className="text-sm font-medium">Next Steps:</p>
-                          <p className="text-sm text-gray-700">{conversation.nextSteps}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <TabsContent value="conversations" className="space-y-4">
+          <div className="flex justify-between">
+            <h3 className="text-xl font-medium">Conversation History</h3>
+            <Button 
+              onClick={() => {
+                setSelectedConversation(null);
+                setIsConversationFormOpen(true);
+              }}
+              size="sm"
+            >
+              Add Conversation
+            </Button>
+          </div>
+          
+          {individualConversations.length === 0 ? (
+            <p className="text-sm text-gray-500">No conversations recorded yet.</p>
+          ) : (
+            <ConversationTimeline 
+              conversations={individualConversations}
+              onEditConversation={handleEditConversation}
+            />
+          )}
         </TabsContent>
       </Tabs>
 
@@ -285,6 +270,31 @@ const IndividualDetail = () => {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isConversationFormOpen} onOpenChange={setIsConversationFormOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedConversation ? 'Edit Conversation' : 'Log Conversation'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedConversation 
+                ? 'Update conversation details below.'
+                : 'Enter details about the conversation below.'}
+            </DialogDescription>
+          </DialogHeader>
+          <ConversationForm
+            initialData={selectedConversation || undefined}
+            initialIndividualIds={[individual?.id].filter(Boolean) as string[]}
+            initialCompanyId={individual?.company_id}
+            onSuccess={() => {
+              setIsConversationFormOpen(false);
+              setSelectedConversation(null);
+              fetchConversations(); // Refresh conversations
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
