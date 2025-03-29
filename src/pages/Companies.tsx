@@ -16,12 +16,14 @@ import {
 } from '@/components/ui/dialog';
 import { CompanyForm } from '@/components/forms/CompanyForm';
 import TagBadge from '@/components/shared/TagBadge';
+import TagFilter from '@/components/shared/TagFilter';
+import SearchBar from '@/components/shared/SearchBar';
 
 const columnHelper = createColumnHelper<Company>();
 
 const Companies = () => {
   const navigate = useNavigate();
-  const { fetchCompanies, deleteCompany } = useCRMStore();
+  const { fetchCompanies, deleteCompany, fetchTags } = useCRMStore();
   const companies = useFilteredCompanies();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -29,7 +31,8 @@ const Companies = () => {
 
   useEffect(() => {
     fetchCompanies();
-  }, [fetchCompanies]);
+    fetchTags();
+  }, [fetchCompanies, fetchTags]);
 
   const handleEdit = (company: Company) => {
     setSelectedCompany(company);
@@ -133,6 +136,16 @@ const Companies = () => {
           <PlusCircle className="mr-2 h-5 w-5" />
           Add Company
         </Button>
+      </div>
+      
+      {/* Add Search and Filter Controls */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <SearchBar />
+        </div>
+        <div>
+          <TagFilter />
+        </div>
       </div>
 
       <DataTable columns={columns} data={companies} />

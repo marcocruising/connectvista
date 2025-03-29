@@ -47,11 +47,7 @@ interface CRMState {
   updateIndividual: (id: string, individual: Partial<Individual>) => Promise<void>;
   deleteIndividual: (id: string) => Promise<void>;
   
-  addConversation: (
-    conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>,
-    participantIds: string[],
-    individualIds: string[]
-  ) => Promise<void>;
+  addConversation: (conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>, tags: string[], individualIds: string[]) => Promise<Conversation>;
   updateConversation: (id: string, conversation: Partial<Conversation>) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   
@@ -270,33 +266,36 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   // Conversations
-  addConversation: async (conversation, participantIds, individualIds) => {
+  addConversation: async (conversationData) => {
     try {
       set({ isLoading: true });
-      const newConversation = await conversationService.createConversation(
-        conversation,
-        participantIds,
-        individualIds
-      );
+      const newConversation = await conversationService.createConversation(conversationData);
       set(state => ({
         conversations: [...state.conversations, newConversation],
         isLoading: false
       }));
+      return newConversation;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
-  updateConversation: async (id, conversation) => {
+  updateConversation: async (id, conversationData) => {
     try {
       set({ isLoading: true });
-      const updatedConversation = await conversationService.updateConversation(id, conversation);
+      // Tag IDs should be passed as part of conversationData
+      const updatedConversation = await conversationService.updateConversation(id, conversationData);
       set(state => ({
-        conversations: state.conversations.map(c => c.id === id ? updatedConversation : c),
+        conversations: state.conversations.map(conversation => 
+          conversation.id === id ? updatedConversation : conversation
+        ),
         isLoading: false
       }));
+      return updatedConversation;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
@@ -305,7 +304,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       set({ isLoading: true });
       await conversationService.deleteConversation(id);
       set(state => ({
-        conversations: state.conversations.filter(c => c.id !== id),
+        conversations: state.conversations.filter(conversation => conversation.id !== id),
         isLoading: false
       }));
     } catch (error) {
@@ -408,40 +407,41 @@ export const useFilteredIndividuals = () => {
 };
 
 export const useFilteredCompanies = () => {
-  const { companies, searchQuery } = useCRMStore();
+  const { companies, searchQuery, selectedTags } = useCRMStore();
   
-  return companies.filter((company) =>
-    searchQuery === '' ||
-    company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.industry.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.website.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    company.notes.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  return companies.filter((company) => {
+    // Filter by search query
+    const matchesSearch =
+      searchQuery === '' ||
+      company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (company.website?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (company.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    
+    // Filter by selected tags
+    const matchesTags =
+      selectedTags.length === 0 ||
+      (company.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
+    
+    return matchesSearch && matchesTags;
+  });
 };
 
 export const useFilteredConversations = () => {
-  const { conversations, searchQuery, selectedTags, individuals } = useCRMStore();
+  const { conversations, searchQuery, selectedTags } = useCRMStore();
   
   return conversations.filter((conversation) => {
+    // Filter by search query
     const matchesSearch =
       searchQuery === '' ||
       conversation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       conversation.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.nextSteps.toLowerCase().includes(searchQuery.toLowerCase());
+      (conversation.nextSteps?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     
-    if (selectedTags.length === 0) {
-      return matchesSearch;
-    }
+    // Filter by selected tags
+    const matchesTags =
+      selectedTags.length === 0 ||
+      (conversation.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
     
-    // Check if any individual in the conversation has the selected tags
-    const conversationIndividuals = individuals.filter((individual) =>
-      conversation.individualIds.includes(individual.id)
-    );
-    
-    const hasTags = conversationIndividuals.some((individual) =>
-      individual.tags.some((tag) => selectedTags.includes(tag.id))
-    );
-    
-    return matchesSearch && hasTags;
+    return matchesSearch && matchesTags;
   });
 };

@@ -18,7 +18,8 @@ import {
   Tag, 
   BarChart3,
   PlusCircle,
-  Settings
+  Settings,
+  MessageSquare
 } from 'lucide-react';
 
 const AppSidebar = () => {
@@ -43,7 +44,7 @@ const AppSidebar = () => {
     {
       title: 'Conversations',
       path: '/conversations',
-      icon: MessageCircle,
+      icon: MessageSquare,
     },
     {
       title: 'Tags',
