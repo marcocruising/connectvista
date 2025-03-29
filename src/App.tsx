@@ -35,37 +35,54 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return children;
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/individuals" element={<Individuals />} />
-            <Route path="/companies" element={<Companies />} />
-            <Route path="/conversations" element={<Conversations />} />
-            <Route path="/tags" element={<Tags />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/companies/:id" element={<CompanyDetail />} />
-            <Route path="/individuals/:id" element={<IndividualDetail />} />
-            <Route path="/conversations/:id" element={<ConversationDetail />} />
-            <Route path="/debug" element={<Debug />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const { fetchConversations, fetchIndividuals, fetchCompanies, fetchTags } = useCRMStore();
+
+  useEffect(() => {
+    const initializeApp = async () => {
+      await Promise.all([
+        fetchConversations(),
+        fetchIndividuals(),
+        fetchCompanies(),
+        fetchTags()
+      ]);
+    };
+    
+    initializeApp();
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/individuals" element={<Individuals />} />
+              <Route path="/companies" element={<Companies />} />
+              <Route path="/conversations" element={<Conversations />} />
+              <Route path="/tags" element={<Tags />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/companies/:id" element={<CompanyDetail />} />
+              <Route path="/individuals/:id" element={<IndividualDetail />} />
+              <Route path="/conversations/:id" element={<ConversationDetail />} />
+              <Route path="/debug" element={<Debug />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

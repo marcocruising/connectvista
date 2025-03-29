@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
 import { BarChart3, Building2, Calendar, MessageCircle, Users } from 'lucide-react';
@@ -7,13 +7,56 @@ import { format } from 'date-fns';
 import SearchBar from '@/components/shared/SearchBar';
 
 const Dashboard = () => {
-  const { conversations, tags, searchQuery, setSearchQuery } = useCRMStore();
-  const individuals = useFilteredIndividuals();
-  const companies = useFilteredCompanies();
+  const { 
+    conversations, 
+    individuals, 
+    companies, 
+    fetchConversations, 
+    fetchIndividuals, 
+    fetchCompanies,
+    fetchTags,
+    tags,
+    searchQuery,
+    setSearchQuery
+  } = useCRMStore();
   const filteredConversations = useFilteredConversations();
   const recentConversations = [...filteredConversations]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
+
+  // When the dashboard mounts, fetch all required data
+  useEffect(() => {
+    // Fetch all required data for the dashboard
+    const loadAllData = async () => {
+      try {
+        // Use Promise.all to fetch data in parallel for better performance
+        await Promise.all([
+          fetchConversations(),
+          fetchIndividuals(),
+          fetchCompanies(),
+          fetchTags()
+        ]);
+      } catch (error) {
+        console.error('Error loading dashboard data:', error);
+      }
+    };
+    
+    loadAllData();
+  }, [fetchConversations, fetchIndividuals, fetchCompanies, fetchTags]);
+  
+  // Add a loading state that displays while data is being fetched
+  const isLoading = !conversations.length && !individuals.length && !companies.length;
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crm-blue mx-auto"></div>
+          <p className="mt-4 text-gray-500">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
