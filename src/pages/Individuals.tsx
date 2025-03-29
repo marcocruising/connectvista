@@ -49,7 +49,10 @@ const Individuals = () => {
       id: 'name',
       header: 'Name',
       cell: (info) => (
-        <Link to={`/individuals/${info.row.original.id}`} className="font-medium text-crm-blue">
+        <Link 
+          to={`/individuals/${info.row.original.id}`} 
+          className="font-medium text-blue-600 hover:underline"
+        >
           {info.getValue()}
         </Link>
       ),
@@ -72,7 +75,7 @@ const Individuals = () => {
         return company ? (
           <Link 
             to={`/companies/${company.id}`} 
-            className="text-blue-600 hover:underline"
+            className="font-medium text-blue-600 hover:underline"
           >
             {company.name}
           </Link>

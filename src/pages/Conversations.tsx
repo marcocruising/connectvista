@@ -59,7 +59,17 @@ const Conversations = () => {
   const columns = [
     columnHelper.accessor('title', {
       header: 'Title',
-      cell: (info) => info.getValue(),
+      cell: ({ row }) => {
+        const conversation = row.original;
+        return (
+          <Link 
+            to={`/conversations/${conversation.id}`} 
+            className="font-medium text-blue-600 hover:underline"
+          >
+            {conversation.title}
+          </Link>
+        );
+      }
     }),
     columnHelper.accessor('date', {
       header: 'Date',

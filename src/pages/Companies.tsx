@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useFilteredCompanies, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, MoreHorizontal, ExternalLink } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { createColumnHelper } from '@tanstack/react-table';
@@ -18,6 +18,12 @@ import { CompanyForm } from '@/components/forms/CompanyForm';
 import TagBadge from '@/components/shared/TagBadge';
 import TagFilter from '@/components/shared/TagFilter';
 import SearchBar from '@/components/shared/SearchBar';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip';
 
 const columnHelper = createColumnHelper<Company>();
 
@@ -53,10 +59,34 @@ const Companies = () => {
   };
 
   const columns = [
-    columnHelper.accessor('name', {
-      header: 'Name',
-      cell: (info) => info.getValue(),
-    }),
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => {
+        const company = row.original;
+        return (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link 
+                  to={`/companies/${company.id}`} 
+                  className="font-medium text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  {company.name}
+                  <ExternalLink className="h-3 w-3 opacity-50" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>View {company.name} details</p>
+                {company.description && (
+                  <p className="text-xs max-w-xs truncate">{company.description}</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        );
+      }
+    },
     columnHelper.accessor('website', {
       header: 'Website',
       cell: (info) => info.getValue() || '-',
