@@ -10,12 +10,14 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCRMStore } from '@/store/crmStore';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Tag } from '@/types/crm';
 import { Conversation } from '@/types/crm';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { IndividualForm } from '@/components/forms/IndividualForm';
 
 const conversationSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -24,7 +26,6 @@ const conversationSchema = z.object({
   }),
   summary: z.string().min(1, 'Summary is required'),
   nextSteps: z.string().optional(),
-  notes: z.string().optional(),
 });
 
 type ConversationFormData = z.infer<typeof conversationSchema>;
@@ -65,6 +66,9 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     initialData?.tags?.map((tag: Tag) => tag.id) || []
   );
 
+  // Add new state for the individual form dialog
+  const [isIndividualFormOpen, setIsIndividualFormOpen] = useState(false);
+
   // Form setup
   const form = useForm<ConversationFormData>({
     resolver: zodResolver(conversationSchema),
@@ -73,7 +77,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
       date: initialData?.date ? new Date(initialData.date) : new Date(),
       summary: initialData?.summary || '',
       nextSteps: initialData?.nextSteps || '',
-      notes: initialData?.notes || '',
     },
   });
 
@@ -107,6 +110,13 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     ? individuals.filter(individual => individual.company_id === selectedCompanyId)
     : [];
 
+  // Handle successful individual creation
+  const handleIndividualCreated = (newIndividualId: string) => {
+    // Add the newly created individual to the selected individuals
+    setSelectedIndividualIds(prev => [...prev, newIndividualId]);
+    setIsIndividualFormOpen(false);
+  };
+
   // Handle form submission
   const onSubmit = async (data: ConversationFormData) => {
     try {
@@ -115,7 +125,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         date: data.date.toISOString(),
         companyId: selectedCompanyId,
         nextSteps: data.nextSteps || null,
-        notes: data.notes || null,
         tags: selectedTagIds,
         individualIds: selectedIndividualIds
       };
@@ -217,6 +226,18 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
           {individuals.length === 0 && (
             <p className="text-gray-400 text-sm">No individuals available</p>
           )}
+          
+          {/* Add Individual Button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsIndividualFormOpen(true)}
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
+            <PlusCircle className="h-4 w-4 mr-1" />
+            Add Individual
+          </Button>
         </div>
       </div>
 
@@ -268,19 +289,25 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         />
       </div>
 
-      <div>
-        <Label htmlFor="notes">Notes</Label>
-        <Textarea
-          id="notes"
-          {...form.register('notes')}
-          placeholder="Enter additional notes"
-          rows={4}
-        />
-      </div>
-
       <Button type="submit" className="w-full">
         {initialData?.id ? 'Update Conversation' : 'Add Conversation'}
       </Button>
+      
+      {/* Individual Creation Dialog */}
+      <Dialog open={isIndividualFormOpen} onOpenChange={setIsIndividualFormOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Individual</DialogTitle>
+            <DialogDescription>
+              Fill in the details to create a new contact.
+            </DialogDescription>
+          </DialogHeader>
+          <IndividualForm 
+            initialCompanyId={selectedCompanyId} 
+            onSuccess={(newIndividualId) => handleIndividualCreated(newIndividualId)} 
+          />
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }; 
