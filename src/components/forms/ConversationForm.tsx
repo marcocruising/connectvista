@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Tag } from '@/types/crm';
+import { Conversation } from '@/types/crm';
 
 const conversationSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -29,11 +30,18 @@ const conversationSchema = z.object({
 type ConversationFormData = z.infer<typeof conversationSchema>;
 
 interface ConversationFormProps {
-  initialData?: any;
-  onSuccess?: () => void;
+  initialData?: Conversation;
+  initialCompanyId?: string;
+  initialIndividualIds?: string[];
+  onSuccess: () => void;
 }
 
-export const ConversationForm = ({ initialData, onSuccess }: ConversationFormProps) => {
+export const ConversationForm: React.FC<ConversationFormProps> = ({
+  initialData,
+  initialCompanyId,
+  initialIndividualIds = [],
+  onSuccess
+}) => {
   const { 
     addConversation, 
     updateConversation, 
@@ -45,12 +53,12 @@ export const ConversationForm = ({ initialData, onSuccess }: ConversationFormPro
     tags,
   } = useCRMStore();
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(
-    initialData?.companyId || null
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(
+    initialData?.companyId || initialCompanyId
   );
   
   const [selectedIndividualIds, setSelectedIndividualIds] = useState<string[]>(
-    initialData?.individualIds || []
+    initialData?.individualIds || initialIndividualIds || []
   );
 
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
@@ -171,7 +179,7 @@ export const ConversationForm = ({ initialData, onSuccess }: ConversationFormPro
         <Label htmlFor="company">Company</Label>
         <Select
           value={selectedCompanyId || "none"}
-          onValueChange={(value) => setSelectedCompanyId(value === "none" ? null : value)}
+          onValueChange={(value) => setSelectedCompanyId(value === "none" ? undefined : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Select a company" />
