@@ -45,47 +45,47 @@ const Individuals = () => {
   };
 
   const columns = [
-    columnHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
-      id: 'name',
+    columnHelper.accessor('first_name', {
       header: 'Name',
-      cell: (info) => (
-        <Link 
-          to={`/individuals/${info.row.original.id}`} 
-          className="font-medium text-blue-600 hover:underline"
-        >
-          {info.getValue()}
-        </Link>
-      ),
-    }),
-    columnHelper.accessor('role', {
-      header: 'Title',
-      cell: (info) => info.getValue() || '',
-    }),
-    columnHelper.accessor('email', {
-      header: 'Email',
-      cell: (info) => <a href={`mailto:${info.getValue()}`} className="text-crm-blue">{info.getValue()}</a>,
+      cell: ({ row }) => {
+        const individual = row.original;
+        return (
+          <Link 
+            to={`/individuals/${individual.id}`} 
+            className="font-medium text-blue-600 hover:underline"
+          >
+            {individual.first_name} {individual.last_name}
+          </Link>
+        );
+      },
+      size: 230,
     }),
     columnHelper.accessor('company_id', {
       header: 'Company',
-      cell: ({ getValue }) => {
-        const companyId = getValue();
+      cell: (info) => {
+        const companyId = info.getValue();
         if (!companyId) return '-';
         
         const company = companies.find(c => c.id === companyId);
         return company ? (
-          <Link 
-            to={`/companies/${company.id}`} 
-            className="font-medium text-blue-600 hover:underline"
-          >
+          <Link to={`/companies/${company.id}`} className="text-blue-600 hover:underline">
             {company.name}
           </Link>
         ) : '-';
-      }
+      },
+      size: 200,
+    }),
+    columnHelper.accessor('job_title', {
+      header: 'Title',
+      cell: (info) => info.getValue() || '-',
+      size: 180,
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
       cell: (info) => {
         const tags = info.getValue() || [];
+        if (tags.length === 0) return '-';
+        
         return (
           <div className="flex flex-wrap gap-1">
             {tags.map((tag) => (
@@ -94,32 +94,29 @@ const Individuals = () => {
           </div>
         );
       },
+      size: 200,
     }),
     columnHelper.display({
       id: 'actions',
-      header: '',
       cell: (info) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleEdit(info.row.original)}>
-              <Edit className="mr-2 h-4 w-4" />
-              Edit
-            </DropdownMenuItem>
-            <DropdownMenuItem 
-              onClick={() => handleDelete(info.row.original)}
-              className="text-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex space-x-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleEdit(info.row.original)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleDelete(info.row.original)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
+      size: 100,
     }),
   ];
 

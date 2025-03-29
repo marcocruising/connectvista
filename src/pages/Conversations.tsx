@@ -171,20 +171,21 @@ const Conversations = () => {
           className="bg-crm-blue hover:bg-crm-darkBlue"
         >
           <PlusCircle className="mr-2 h-5 w-5" />
-          Log Conversation
+          Add Conversation
         </Button>
       </div>
       
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col md:flex-row gap-4">
+        <div className="md:flex-1">
           <SearchBar 
             value={searchQuery} 
             onChange={setSearchQuery} 
             placeholder="Search conversations..." 
           />
+        </div>
+        <div>
           <TagFilter />
         </div>
-        <Button onClick={() => setIsFormOpen(true)}>Add Conversation</Button>
       </div>
 
       <DataTable columns={columns} data={conversations} />
@@ -194,7 +195,7 @@ const Conversations = () => {
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
-              {selectedConversation ? 'Edit Conversation' : 'Log Conversation'}
+              {selectedConversation ? 'Edit Conversation' : 'Add Conversation'}
             </DialogTitle>
             <DialogDescription>
               {selectedConversation 
