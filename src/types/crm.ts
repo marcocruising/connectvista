@@ -39,16 +39,16 @@ export interface Individual {
 
 export interface Conversation {
   id: string;
+  title: string;
   date: string;
-  company_id?: string;
-  notes: string;
-  follow_up_required: boolean;
-  follow_up_date?: string;
-  created_by: string;
+  summary: string;
+  nextSteps?: string;
+  notes?: string;
+  companyId?: string;
+  individualIds: string[];
   created_at: string;
   updated_at: string;
-  participants?: string[]; // user_ids
-  individuals?: string[]; // individual_ids
+  created_by: string;
   tags?: Tag[];
 }
 

@@ -10,6 +10,8 @@ import { createColumnHelper } from '@tanstack/react-table';
 import { Individual } from '@/types/crm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { IndividualForm } from '@/components/forms/IndividualForm';
+import TagFilter from '@/components/shared/TagFilter';
+import SearchBar from '@/components/shared/SearchBar';
 
 const columnHelper = createColumnHelper<Individual>();
 
@@ -23,14 +25,6 @@ const Individuals = () => {
   useEffect(() => {
     fetchIndividuals();
   }, [fetchIndividuals]);
-
-  const handleTagSelection = (tagId: string) => {
-    setSelectedTags(
-      selectedTags.includes(tagId)
-        ? selectedTags.filter((id) => id !== tagId)
-        : [...selectedTags, tagId]
-    );
-  };
 
   const handleEdit = (individual: Individual) => {
     setSelectedIndividual(individual);
@@ -147,34 +141,12 @@ const Individuals = () => {
         </Button>
       </div>
 
-      <div className="bg-white p-4 rounded-md border">
-        <h2 className="font-semibold mb-2">Filter by Tags</h2>
-        <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
-            <Button
-              key={tag.id}
-              variant={selectedTags.includes(tag.id) ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTagSelection(tag.id)}
-              style={{
-                backgroundColor: selectedTags.includes(tag.id) ? tag.color : 'transparent',
-                borderColor: tag.color,
-                color: selectedTags.includes(tag.id) ? 'white' : tag.color,
-              }}
-            >
-              {tag.name}
-            </Button>
-          ))}
-          {selectedTags.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedTags([])}
-              className="text-gray-500"
-            >
-              Clear Filters
-            </Button>
-          )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <SearchBar />
+        </div>
+        <div>
+          <TagFilter />
         </div>
       </div>
 

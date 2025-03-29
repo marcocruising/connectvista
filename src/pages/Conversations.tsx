@@ -1,111 +1,143 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFilteredConversations, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2, Calendar } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Calendar, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Conversation } from '@/types/crm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { XIcon } from 'lucide-react';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription,
+  DialogFooter
+} from '@/components/ui/dialog';
+import { ConversationForm } from '@/components/forms/ConversationForm';
+import TagBadge from '@/components/shared/TagBadge';
+import TagFilter from '@/components/shared/TagFilter';
+import SearchBar from '@/components/shared/SearchBar';
 import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
 const columnHelper = createColumnHelper<Conversation>();
 
 const Conversations = () => {
-  const { companies, individuals, deleteConversation } = useCRMStore();
+  const { fetchConversations, fetchIndividuals, deleteConversation, individuals, companies } = useCRMStore();
   const conversations = useFilteredConversations();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [conversationToDelete, setConversationToDelete] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
-  const confirmDelete = (id: string) => {
-    setConversationToDelete(id);
+  useEffect(() => {
+    fetchConversations();
+    fetchIndividuals();
+  }, [fetchConversations, fetchIndividuals]);
+
+  const handleEdit = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
     setIsDeleteDialogOpen(true);
   };
 
-  const executeDelete = () => {
-    if (conversationToDelete) {
-      deleteConversation(conversationToDelete);
-      setConversationToDelete(null);
+  const confirmDelete = async () => {
+    if (selectedConversation) {
+      await deleteConversation(selectedConversation.id);
       setIsDeleteDialogOpen(false);
+      setSelectedConversation(null);
     }
-  };
-
-  const getParticipantNames = (conversation: Conversation) => {
-    const participantIndividuals = individuals
-      .filter(individual => conversation.individualIds.includes(individual.id))
-      .map(individual => `${individual.firstName} ${individual.lastName}`);
-    
-    if (conversation.companyId) {
-      const company = companies.find(c => c.id === conversation.companyId);
-      if (company) {
-        if (participantIndividuals.length > 0) {
-          return `${participantIndividuals.join(', ')} (${company.name})`;
-        }
-        return company.name;
-      }
-    }
-    
-    return participantIndividuals.join(', ') || 'Unknown';
   };
 
   const columns = [
     columnHelper.accessor('title', {
       header: 'Title',
-      cell: (info) => (
-        <Link to={`/conversations/${info.row.original.id}`} className="font-medium text-crm-blue">
-          {info.getValue()}
-        </Link>
-      ),
+      cell: (info) => info.getValue(),
     }),
     columnHelper.accessor('date', {
       header: 'Date',
-      cell: (info) => (
-        <div className="flex items-center">
-          <Calendar className="mr-2 h-4 w-4 text-gray-500" />
-          {format(new Date(info.getValue()), 'PPP')}
-        </div>
-      ),
+      cell: (info) => format(new Date(info.getValue()), 'MMM d, yyyy'),
     }),
-    columnHelper.display({
-      id: 'participants',
-      header: 'Participants',
-      cell: (info) => getParticipantNames(info.row.original),
-    }),
-    columnHelper.accessor('nextSteps', {
-      header: 'Next Steps',
+    columnHelper.accessor('companyId', {
+      header: 'Company',
       cell: (info) => {
-        const value = info.getValue();
-        return value.length > 50 ? `${value.substring(0, 50)}...` : value;
+        const companyId = info.getValue();
+        if (!companyId) return '-';
+        
+        const company = companies.find(c => c.id === companyId);
+        return company ? (
+          <Link to={`/companies/${company.id}`} className="text-blue-600 hover:underline">
+            {company.name}
+          </Link>
+        ) : '-';
+      },
+    }),
+    columnHelper.accessor('individualIds', {
+      header: 'Participants',
+      cell: (info) => {
+        const individualIds = info.getValue() || [];
+        if (individualIds.length === 0) return '-';
+        
+        const participantIndividuals = individuals.filter(individual => 
+          individualIds.includes(individual.id)
+        );
+        
+        return (
+          <div className="participants-container">
+            {participantIndividuals.map((individual, index) => (
+              <span key={individual.id}>
+                <Link 
+                  to={`/individuals/${individual.id}`} 
+                  className="text-blue-600 hover:underline"
+                >
+                  {individual.first_name} {individual.last_name}
+                </Link>
+                {index < participantIndividuals.length - 1 && ', '}
+              </span>
+            ))}
+          </div>
+        );
+      },
+    }),
+    columnHelper.accessor('tags', {
+      header: 'Tags',
+      cell: (info) => {
+        const tags = info.getValue() || [];
+        if (tags.length === 0) return '-';
+        
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
+          </div>
+        );
       },
     }),
     columnHelper.display({
       id: 'actions',
-      header: '',
       cell: (info) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/conversations/${info.row.original.id}`} className="flex items-center">
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => confirmDelete(info.row.original.id)} className="text-destructive">
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex space-x-2">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleEdit(info.row.original)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleDelete(info.row.original)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     }),
   ];
@@ -116,35 +148,72 @@ const Conversations = () => {
         <div>
           <h1 className="text-3xl font-bold text-crm-text">Conversations</h1>
           <p className="text-gray-500 mt-1">
-            Track all your stakeholder communications
+            Track interactions with your contacts and companies
           </p>
         </div>
-        <Button asChild className="bg-crm-blue hover:bg-crm-darkBlue">
-          <Link to="/conversations/new" className="flex items-center">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Add Conversation
-          </Link>
+        <Button 
+          onClick={() => {
+            setSelectedConversation(null);
+            setIsFormOpen(true);
+          }} 
+          className="bg-crm-blue hover:bg-crm-darkBlue"
+        >
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Log Conversation
         </Button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <SearchBar />
+        </div>
+        <div>
+          <TagFilter />
+        </div>
       </div>
 
       <DataTable columns={columns} data={conversations} />
 
+      {/* Add/Edit Dialog */}
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {selectedConversation ? 'Edit Conversation' : 'Log Conversation'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedConversation 
+                ? 'Update conversation details below.' 
+                : 'Enter details about the conversation below.'}
+            </DialogDescription>
+          </DialogHeader>
+          <ConversationForm 
+            initialData={selectedConversation || undefined}
+            onSuccess={() => {
+              setIsFormOpen(false);
+              setSelectedConversation(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this conversation record? This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p>Are you sure you want to delete this conversation? This action cannot be undone.</p>
-          <div className="flex justify-end space-x-2 mt-4">
+          <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              <XIcon className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button variant="destructive" onClick={executeDelete}>
-              <Trash2 className="mr-2 h-4 w-4" />
+            <Button variant="destructive" onClick={confirmDelete}>
               Delete
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
