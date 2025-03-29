@@ -59,6 +59,9 @@ interface CRMState {
   initializeAuth: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  
+  // New functions
+  updateIndividualWithTags: (individualId: string, tagIds: string[]) => Promise<void>;
 }
 
 export const useCRMStore = create<CRMState>((set, get) => ({
@@ -208,28 +211,43 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   addIndividual: async (individual) => {
     try {
       set({ isLoading: true });
-      const newIndividual = await individualService.createIndividual(individual);
+      // Extract tags to handle them separately
+      const { tags, ...individualData } = individual as any;
+      
+      const newIndividual = await individualService.createIndividual(individualData);
+      
+      // Add the new individual to state without tags initially
       set(state => ({
         individuals: [...state.individuals, newIndividual],
         isLoading: false
       }));
+      
+      return newIndividual; // Return the new individual for tag handling
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
   updateIndividual: async (id, individualData) => {
     try {
       set({ isLoading: true });
-      const updatedIndividual = await individualService.updateIndividual(id, individualData);
+      // Extract tags to handle them separately
+      const { tags, ...individual } = individualData as any;
+      
+      const updatedIndividual = await individualService.updateIndividual(id, individual);
+      
       set(state => ({
-        individuals: state.individuals.map(individual => 
-          individual.id === id ? updatedIndividual : individual
+        individuals: state.individuals.map(ind => 
+          ind.id === id ? updatedIndividual : ind
         ),
         isLoading: false
       }));
+      
+      return updatedIndividual;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 
@@ -317,6 +335,26 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       set({ user: null, isAuthenticated: false, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // New functions
+  updateIndividualWithTags: async (individualId: string, tagIds: string[]) => {
+    try {
+      // Get the tags from the state
+      const state = get();
+      const relevantTags = state.tags.filter(tag => tagIds.includes(tag.id));
+      
+      // Update the individual in the state to include these tags
+      set(state => ({
+        individuals: state.individuals.map(ind => 
+          ind.id === individualId 
+            ? { ...ind, tags: relevantTags }
+            : ind
+        )
+      }));
+    } catch (error) {
+      console.error('Error updating individual tags in store:', error);
     }
   },
 }));

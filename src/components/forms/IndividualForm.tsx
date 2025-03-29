@@ -15,13 +15,14 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import TagBadge from '@/components/shared/TagBadge';
+import { individualService } from '@/services/individualService';
 
 const individualSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
   last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().optional(),
-  company_id: z.string().optional(),
+  company_id: z.string().uuid().nullable().optional(),
   role: z.string().optional(),
   description: z.string().optional(),
 });
@@ -34,7 +35,15 @@ interface IndividualFormProps {
 }
 
 export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) => {
-  const { addIndividual, updateIndividual, fetchCompanies, companies, fetchTags, tags } = useCRMStore();
+  const { 
+    addIndividual, 
+    updateIndividual, 
+    fetchCompanies, 
+    companies, 
+    fetchTags, 
+    tags,
+    updateIndividualWithTags 
+  } = useCRMStore();
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     initialData?.tags?.map(tag => tag.id) || []
   );
@@ -46,7 +55,7 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
       last_name: initialData?.last_name || '',
       email: initialData?.email || '',
       phone: initialData?.phone || '',
-      company_id: initialData?.company_id || '',
+      company_id: initialData?.company_id || null,
       role: initialData?.role || '',
       description: initialData?.description || '',
     },
@@ -61,15 +70,27 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
 
   const onSubmit = async (data: IndividualFormData) => {
     try {
-      const individualData = {
-        ...data,
-        tags: selectedTagIds
-      };
+      // Log what we're about to submit
+      console.log('Form data:', data);
+      console.log('Selected tags:', selectedTagIds);
+      
+      // First, try just saving the individual data without tags
+      const basicData = { ...data };
       
       if (initialData?.id) {
-        await updateIndividual(initialData.id, individualData);
+        await updateIndividual(initialData.id, basicData);
+        // After successful update, handle tags separately
+        await individualService.updateIndividualTags(initialData.id, selectedTagIds);
+        // Update the store with the tags
+        await updateIndividualWithTags(initialData.id, selectedTagIds);
       } else {
-        await addIndividual(individualData);
+        const newIndividual = await addIndividual(basicData);
+        // After successful creation, handle tags separately
+        if (newIndividual?.id) {
+          await individualService.updateIndividualTags(newIndividual.id, selectedTagIds);
+          // Update the store with the tags
+          await updateIndividualWithTags(newIndividual.id, selectedTagIds);
+        }
       }
       onSuccess?.();
     } catch (error) {
@@ -78,7 +99,7 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
   };
 
   const handleCompanyChange = (value: string) => {
-    setValue('company_id', value === 'none' ? '' : value);
+    setValue('company_id', value === 'none' ? null : value);
   };
 
   const handleTagSelection = (tagId: string) => {
