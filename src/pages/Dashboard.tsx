@@ -4,22 +4,28 @@ import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals,
 import { BarChart3, Building2, Calendar, MessageCircle, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import SearchBar from '@/components/shared/SearchBar';
 
 const Dashboard = () => {
-  const { conversations, tags } = useCRMStore();
+  const { conversations, tags, searchQuery, setSearchQuery } = useCRMStore();
   const individuals = useFilteredIndividuals();
   const companies = useFilteredCompanies();
-  const recentConversations = [...conversations]
+  const filteredConversations = useFilteredConversations();
+  const recentConversations = [...filteredConversations]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 5);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-crm-text">Dashboard</h1>
-        <p className="text-gray-500 mt-1">
-          Welcome to your ConnectVista CRM dashboard
-        </p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-crm-text">Dashboard</h1>
+          <p className="text-gray-500 mt-1">
+            Welcome to your ConnectVista CRM dashboard
+          </p>
+        </div>
+        
+        <SearchBar />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -96,29 +102,39 @@ const Dashboard = () => {
         <CardHeader>
           <CardTitle>Recent Conversations</CardTitle>
           <CardDescription>
-            Your last 5 tracked conversations with stakeholders
+            {searchQuery 
+              ? `Filtered conversations matching "${searchQuery}"`
+              : 'Your last 5 tracked conversations with stakeholders'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentConversations.map((conversation) => (
-              <div key={conversation.id} className="border-b pb-4 last:border-0">
-                <h3 className="font-semibold text-crm-blue">
-                  <Link to={`/conversations/${conversation.id}`}>
-                    {conversation.title}
-                  </Link>
-                </h3>
-                <div className="flex items-center text-sm text-gray-500 mt-1">
-                  <Calendar className="h-3 w-3 mr-1" />
-                  {format(new Date(conversation.date), 'PPP')}
+            {recentConversations.length > 0 ? (
+              recentConversations.map((conversation) => (
+                <div key={conversation.id} className="border-b pb-4 last:border-0">
+                  <h3 className="font-semibold text-crm-blue">
+                    <Link to={`/conversations/${conversation.id}`}>
+                      {conversation.title}
+                    </Link>
+                  </h3>
+                  <div className="flex items-center text-sm text-gray-500 mt-1">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {format(new Date(conversation.date), 'PPP')}
+                  </div>
+                  <p className="text-sm mt-2 text-gray-700">{conversation.summary}</p>
+                  <div className="text-sm mt-2">
+                    <span className="font-medium">Next Steps: </span>
+                    {conversation.nextSteps}
+                  </div>
                 </div>
-                <p className="text-sm mt-2 text-gray-700">{conversation.summary}</p>
-                <div className="text-sm mt-2">
-                  <span className="font-medium">Next Steps: </span>
-                  {conversation.nextSteps}
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                {searchQuery 
+                  ? 'No conversations match your search criteria'
+                  : 'No recent conversations found'}
               </div>
-            ))}
+            )}
           </div>
         </CardContent>
       </Card>
