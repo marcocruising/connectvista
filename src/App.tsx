@@ -17,6 +17,7 @@ import CompanyDetail from './pages/CompanyDetail';
 import IndividualDetail from './pages/IndividualDetail';
 import ConversationDetail from './pages/ConversationDetail';
 import Debug from "./pages/Debug";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/companies" element={<Companies />} />
             <Route path="/conversations" element={<Conversations />} />
             <Route path="/tags" element={<Tags />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/individuals/:id" element={<IndividualDetail />} />
             <Route path="/conversations/:id" element={<ConversationDetail />} />
