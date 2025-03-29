@@ -1,80 +1,92 @@
-
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useFilteredCompanies, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Company } from '@/types/crm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CheckIcon, XIcon } from 'lucide-react';
+import { CompanyForm } from '@/components/forms/CompanyForm';
 
 const columnHelper = createColumnHelper<Company>();
 
 const Companies = () => {
-  const { deleteCompany } = useCRMStore();
+  const navigate = useNavigate();
+  const { fetchCompanies, deleteCompany } = useCRMStore();
   const companies = useFilteredCompanies();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
-  const confirmDelete = (id: string) => {
-    setCompanyToDelete(id);
+  useEffect(() => {
+    fetchCompanies();
+  }, [fetchCompanies]);
+
+  const handleEdit = (company: Company) => {
+    setSelectedCompany(company);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (company: Company) => {
+    setSelectedCompany(company);
     setIsDeleteDialogOpen(true);
   };
 
-  const executeDelete = () => {
-    if (companyToDelete) {
-      deleteCompany(companyToDelete);
-      setCompanyToDelete(null);
+  const confirmDelete = async () => {
+    if (selectedCompany) {
+      await deleteCompany(selectedCompany.id);
       setIsDeleteDialogOpen(false);
+      setSelectedCompany(null);
     }
   };
 
   const columns = [
     columnHelper.accessor('name', {
       header: 'Name',
-      cell: (info) => (
-        <Link to={`/companies/${info.row.original.id}`} className="font-medium text-crm-blue">
-          {info.getValue()}
-        </Link>
-      ),
-    }),
-    columnHelper.accessor('industry', {
-      header: 'Industry',
       cell: (info) => info.getValue(),
     }),
     columnHelper.accessor('website', {
       header: 'Website',
-      cell: (info) => (
-        <a href={info.getValue()} target="_blank" rel="noopener noreferrer" className="text-crm-blue">
-          {info.getValue().replace(/^https?:\/\//, '')}
-        </a>
-      ),
+      cell: (info) => info.getValue() || '-',
+    }),
+    columnHelper.accessor('description', {
+      header: 'Description',
+      cell: (info) => info.getValue() || '-',
+    }),
+    columnHelper.accessor('industry', {
+      header: 'Industry',
+      cell: (info) => info.getValue() || '-',
+    }),
+    columnHelper.accessor('size', {
+      header: 'Size',
+      cell: (info) => info.getValue() || '-',
+    }),
+    columnHelper.accessor('type', {
+      header: 'Type',
+      cell: (info) => info.getValue() || '-',
     }),
     columnHelper.display({
       id: 'actions',
-      header: '',
       cell: (info) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/companies/${info.row.original.id}`} className="flex items-center">
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit</span>
-              </Link>
+            <DropdownMenuItem onClick={() => handleEdit(info.row.original)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => confirmDelete(info.row.original.id)} className="text-destructive">
+            <DropdownMenuItem 
+              onClick={() => handleDelete(info.row.original)}
+              className="text-red-600"
+            >
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -91,29 +103,52 @@ const Companies = () => {
             Manage your company relationships
           </p>
         </div>
-        <Button asChild className="bg-crm-blue hover:bg-crm-darkBlue">
-          <Link to="/companies/new" className="flex items-center">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Add Company
-          </Link>
+        <Button 
+          onClick={() => setIsEditDialogOpen(true)} 
+          className="bg-crm-blue hover:bg-crm-darkBlue"
+        >
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Add Company
         </Button>
       </div>
 
       <DataTable columns={columns} data={companies} />
 
+      {/* Edit/Add Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedCompany ? 'Edit Company' : 'Add Company'}
+            </DialogTitle>
+          </DialogHeader>
+          <CompanyForm 
+            initialData={selectedCompany ? {
+              id: selectedCompany.id,
+              name: selectedCompany.name,
+              website: selectedCompany.website,
+              description: selectedCompany.description,
+            } : undefined}
+            onSuccess={() => {
+              setIsEditDialogOpen(false);
+              setSelectedCompany(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
-          <p>Are you sure you want to delete this company? This action cannot be undone.</p>
+          <p>Are you sure you want to delete {selectedCompany?.name}? This action cannot be undone.</p>
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              <XIcon className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button variant="destructive" onClick={executeDelete}>
-              <Trash2 className="mr-2 h-4 w-4" />
+            <Button variant="destructive" onClick={confirmDelete}>
               Delete
             </Button>
           </div>

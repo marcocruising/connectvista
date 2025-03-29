@@ -109,7 +109,36 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     try {
       set({ isLoading: true });
       const newTag = await tagService.createTag(tag);
-      set(state => ({ tags: [...state.tags, newTag], isLoading: false }));
+      set(state => ({
+        tags: [...state.tags, newTag],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  updateTag: async (id, tag) => {
+    try {
+      set({ isLoading: true });
+      const updatedTag = await tagService.updateTag(id, tag);
+      set(state => ({
+        tags: state.tags.map(t => t.id === id ? updatedTag : t),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteTag: async (id) => {
+    try {
+      set({ isLoading: true });
+      await tagService.deleteTag(id);
+      set(state => ({
+        tags: state.tags.filter(t => t.id !== id),
+        isLoading: false
+      }));
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }

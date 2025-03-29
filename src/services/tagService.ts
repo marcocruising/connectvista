@@ -13,9 +13,11 @@ export const tagService = {
   },
 
   async createTag(tag: Omit<Tag, 'id' | 'created_at' | 'created_by'>) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const { data, error } = await supabase
       .from('tags')
-      .insert([tag])
+      .insert([{ ...tag, created_by: user?.id }])
       .select()
       .single();
     

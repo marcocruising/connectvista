@@ -1,25 +1,28 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
 import TagBadge from '@/components/shared/TagBadge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal } from 'lucide-react';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Individual } from '@/types/crm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CheckIcon, XIcon } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { IndividualForm } from '@/components/forms/IndividualForm';
 
 const columnHelper = createColumnHelper<Individual>();
 
 const Individuals = () => {
-  const { companies, deleteIndividual, tags, setSelectedTags, selectedTags } = useCRMStore();
+  const { companies, deleteIndividual, tags, setSelectedTags, selectedTags, fetchIndividuals } = useCRMStore();
   const individuals = useFilteredIndividuals();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [individualToDelete, setIndividualToDelete] = useState<string | null>(null);
+  const [selectedIndividual, setSelectedIndividual] = useState<Individual | null>(null);
+
+  useEffect(() => {
+    fetchIndividuals();
+  }, [fetchIndividuals]);
 
   const handleTagSelection = (tagId: string) => {
     setSelectedTags(
@@ -29,16 +32,21 @@ const Individuals = () => {
     );
   };
 
-  const confirmDelete = (id: string) => {
-    setIndividualToDelete(id);
+  const handleEdit = (individual: Individual) => {
+    setSelectedIndividual(individual);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = (individual: Individual) => {
+    setSelectedIndividual(individual);
     setIsDeleteDialogOpen(true);
   };
 
-  const executeDelete = () => {
-    if (individualToDelete) {
-      deleteIndividual(individualToDelete);
-      setIndividualToDelete(null);
+  const confirmDelete = async () => {
+    if (selectedIndividual) {
+      await deleteIndividual(selectedIndividual.id);
       setIsDeleteDialogOpen(false);
+      setSelectedIndividual(null);
     }
   };
 
@@ -90,20 +98,20 @@ const Individuals = () => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem asChild>
-              <Link to={`/individuals/${info.row.original.id}`} className="flex items-center">
-                <Edit className="mr-2 h-4 w-4" />
-                <span>Edit</span>
-              </Link>
+            <DropdownMenuItem onClick={() => handleEdit(info.row.original)}>
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => confirmDelete(info.row.original.id)} className="text-destructive">
+            <DropdownMenuItem 
+              onClick={() => handleDelete(info.row.original)}
+              className="text-red-600"
+            >
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete</span>
+              Delete
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -120,11 +128,15 @@ const Individuals = () => {
             Manage your stakeholders
           </p>
         </div>
-        <Button asChild className="bg-crm-blue hover:bg-crm-darkBlue">
-          <Link to="/individuals/new" className="flex items-center">
-            <PlusCircle className="mr-2 h-5 w-5" />
-            Add Individual
-          </Link>
+        <Button 
+          onClick={() => {
+            setSelectedIndividual(null);
+            setIsFormOpen(true);
+          }}
+          className="bg-crm-blue hover:bg-crm-darkBlue"
+        >
+          <PlusCircle className="mr-2 h-5 w-5" />
+          Add Individual
         </Button>
       </div>
 
@@ -161,19 +173,46 @@ const Individuals = () => {
 
       <DataTable columns={columns} data={individuals} />
 
+      {/* Add/Edit Dialog */}
+      <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {selectedIndividual ? 'Edit Individual' : 'Add Individual'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedIndividual 
+                ? 'Edit the individual\'s details below.' 
+                : 'Enter the individual\'s details below.'}
+            </DialogDescription>
+          </DialogHeader>
+          <IndividualForm
+            initialData={selectedIndividual || undefined}
+            onSuccess={() => {
+              setIsFormOpen(false);
+              setSelectedIndividual(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. The individual will be permanently deleted.
+            </DialogDescription>
           </DialogHeader>
-          <p>Are you sure you want to delete this individual? This action cannot be undone.</p>
+          <p>
+            Are you sure you want to delete {selectedIndividual?.firstName} {selectedIndividual?.lastName}?
+          </p>
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              <XIcon className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-            <Button variant="destructive" onClick={executeDelete}>
-              <Trash2 className="mr-2 h-4 w-4" />
+            <Button variant="destructive" onClick={confirmDelete}>
               Delete
             </Button>
           </div>
