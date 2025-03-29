@@ -253,7 +253,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
       <div>
         <Label htmlFor="company">Company</Label>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 items-center">
           <div className="flex-grow">
             <Select
               value={selectedCompanyId || "none"}
@@ -273,16 +273,16 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             </Select>
           </div>
           
-          {/* Add Company Button */}
+          {/* Updated Company Button with text */}
           <Button
             type="button"
-            variant="outline"
-            size="icon"
+            variant="ghost"
+            size="sm"
             onClick={() => setIsCompanyFormOpen(true)}
-            className="flex-shrink-0"
-            title="Create New Company"
+            className="flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
           >
-            <PlusCircle className="h-4 w-4" />
+            <PlusCircle className="h-4 w-4 mr-1" />
+            Create New Company
           </Button>
         </div>
       </div>
@@ -290,78 +290,93 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
       <div className="space-y-2">
         <Label>Participants</Label>
         
-        {/* Participant search and selection area */}
-        <div className="space-y-2">
-          {/* Search input */}
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-              <Search className="h-4 w-4 text-gray-400" />
-            </div>
-            <Input
-              type="text"
-              placeholder="Search participants..."
-              className="pl-10 pr-4"
-              value={participantSearchQuery}
-              onChange={(e) => setParticipantSearchQuery(e.target.value)}
-              onFocus={() => setShowParticipantResults(true)}
-            />
-          </div>
-          
-          {/* Search results dropdown */}
-          {showParticipantResults && (
-            <div 
-              ref={searchResultsRef}
-              className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded-md shadow-lg"
-            >
-              <div className="p-2">
-                {sortedIndividuals.length > 0 ? (
-                  sortedIndividuals.map(individual => (
-                    <div
-                      key={individual.id}
-                      className={`
-                        p-2 cursor-pointer rounded-md flex items-center justify-between
-                        ${selectedIndividualIds.includes(individual.id) ? 'bg-blue-50' : 'hover:bg-gray-100'}
-                        ${selectedCompanyId && individual.company_id === selectedCompanyId ? 'border-l-4 border-blue-400 pl-1' : ''}
-                      `}
+        {/* Combined participant search and selection area */}
+        <div className="border p-2 rounded">
+          {/* Top row with search input and add button side by side */}
+          <div className="flex space-x-2 mb-3">
+            {/* Search input takes most of the space */}
+            <div className="relative flex-grow">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <Input
+                type="text"
+                placeholder="Search participants..."
+                className="pl-10 pr-4 w-full"
+                value={participantSearchQuery}
+                onChange={(e) => setParticipantSearchQuery(e.target.value)}
+                onFocus={() => setShowParticipantResults(true)}
+              />
+              
+              {/* Search results dropdown */}
+              {showParticipantResults && (
+                <div 
+                  ref={searchResultsRef}
+                  className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded-md shadow-lg"
+                >
+                  <div className="p-2">
+                    {sortedIndividuals.length > 0 ? (
+                      sortedIndividuals.map(individual => (
+                        <div
+                          key={individual.id}
+                          className={`
+                            p-2 cursor-pointer rounded-md flex items-center justify-between
+                            ${selectedIndividualIds.includes(individual.id) ? 'bg-blue-50' : 'hover:bg-gray-100'}
+                            ${selectedCompanyId && individual.company_id === selectedCompanyId ? 'border-l-4 border-blue-400 pl-1' : ''}
+                          `}
+                          onClick={() => {
+                            handleIndividualSelection(individual.id);
+                            setParticipantSearchQuery('');
+                          }}
+                        >
+                          <span>
+                            {individual.first_name} {individual.last_name}
+                            {individual.company_id && (
+                              <span className="text-xs text-gray-500 ml-1">
+                                {companies.find(c => c.id === individual.company_id)?.name}
+                              </span>
+                            )}
+                          </span>
+                          {selectedIndividualIds.includes(individual.id) && (
+                            <span className="text-blue-500 text-sm">✓</span>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-gray-500 text-sm p-2">No matching individuals found</p>
+                    )}
+                    
+                    {/* Create individual option at the bottom */}
+                    <div 
+                      className="p-2 mt-1 cursor-pointer rounded-md hover:bg-gray-100 text-blue-600 flex items-center border-t border-gray-100"
                       onClick={() => {
-                        handleIndividualSelection(individual.id);
-                        setParticipantSearchQuery('');
+                        setIsIndividualFormOpen(true);
+                        setShowParticipantResults(false);
                       }}
                     >
-                      <span>
-                        {individual.first_name} {individual.last_name}
-                        {individual.company_id && (
-                          <span className="text-xs text-gray-500 ml-1">
-                            {companies.find(c => c.id === individual.company_id)?.name}
-                          </span>
-                        )}
-                      </span>
-                      {selectedIndividualIds.includes(individual.id) && (
-                        <span className="text-blue-500 text-sm">✓</span>
-                      )}
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      <span>Create new individual</span>
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 text-sm p-2">No matching individuals found</p>
-                )}
-                
-                {/* Add individual option at the bottom */}
-                <div 
-                  className="p-2 mt-1 cursor-pointer rounded-md hover:bg-gray-100 text-blue-600 flex items-center border-t border-gray-100"
-                  onClick={() => {
-                    setIsIndividualFormOpen(true);
-                    setShowParticipantResults(false);
-                  }}
-                >
-                  <PlusCircle className="h-4 w-4 mr-2" />
-                  <span>Create new individual</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
-          )}
+            
+            {/* Update the participant section button to have blue text */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsIndividualFormOpen(true)}
+              className="flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Create New Individual
+            </Button>
+          </div>
           
-          {/* Selected participants display */}
-          <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
+          {/* Selected participants shown below */}
+          <div className="flex flex-wrap gap-2 min-h-[40px]">
             {selectedIndividuals.length > 0 ? (
               selectedIndividuals.map(individual => (
                 <div 
@@ -381,18 +396,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             ) : (
               <p className="text-gray-400 text-sm">No participants selected</p>
             )}
-            
-            {/* Add Individual Button (inside selected area) */}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsIndividualFormOpen(true)}
-              className="flex items-center text-blue-600 hover:text-blue-800"
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Create New Individual
-            </Button>
           </div>
         </div>
       </div>
