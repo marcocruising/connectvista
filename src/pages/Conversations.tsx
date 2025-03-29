@@ -30,6 +30,8 @@ const Conversations = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const { selectedTags, setSelectedTags } = useCRMStore();
 
   useEffect(() => {
     fetchConversations();
@@ -163,13 +165,16 @@ const Conversations = () => {
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <SearchBar />
-        </div>
-        <div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <SearchBar 
+            value={searchQuery} 
+            onChange={setSearchQuery} 
+            placeholder="Search conversations..." 
+          />
           <TagFilter />
         </div>
+        <Button onClick={() => setIsFormOpen(true)}>Add Conversation</Button>
       </div>
 
       <DataTable columns={columns} data={conversations} />

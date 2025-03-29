@@ -15,10 +15,13 @@ export interface Company {
   size?: 'Small' | 'Medium' | 'Large' | 'Enterprise';
   type?: 'Investor' | 'Customer' | 'Partner' | 'Vendor' | 'Other';
   description?: string;
+  email?: string;
+  phone?: string;
   created_at: string;
   updated_at: string;
   created_by: string;
   tags?: Tag[];
+  company_id?: string | null;
 }
 
 export interface Individual {
