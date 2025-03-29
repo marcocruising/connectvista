@@ -69,7 +69,8 @@ const Conversations = () => {
             {conversation.title}
           </Link>
         );
-      }
+      },
+      size: 250,
     }),
     columnHelper.accessor('date', {
       header: 'Date',

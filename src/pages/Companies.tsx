@@ -59,9 +59,8 @@ const Companies = () => {
   };
 
   const columns = [
-    {
-      accessorKey: "name",
-      header: "Name",
+    columnHelper.accessor('name', {
+      header: 'Company Name',
       cell: ({ row }) => {
         const company = row.original;
         return (
@@ -85,11 +84,13 @@ const Companies = () => {
             </Tooltip>
           </TooltipProvider>
         );
-      }
-    },
+      },
+      size: 250,
+    }),
     columnHelper.accessor('website', {
       header: 'Website',
       cell: (info) => info.getValue() || '-',
+      size: 180,
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
@@ -103,22 +104,27 @@ const Companies = () => {
           </div>
         );
       },
+      size: 200,
     }),
     columnHelper.accessor('description', {
       header: 'Description',
       cell: (info) => info.getValue() || '-',
+      size: 250,
     }),
     columnHelper.accessor('industry', {
       header: 'Industry',
       cell: (info) => info.getValue() || '-',
+      size: 150,
     }),
     columnHelper.accessor('size', {
       header: 'Size',
       cell: (info) => info.getValue() || '-',
+      size: 100,
     }),
     columnHelper.accessor('type', {
       header: 'Type',
       cell: (info) => info.getValue() || '-',
+      size: 120,
     }),
     columnHelper.display({
       id: 'actions',
@@ -144,6 +150,7 @@ const Companies = () => {
           </DropdownMenuContent>
         </DropdownMenu>
       ),
+      size: 80,
     }),
   ];
 
