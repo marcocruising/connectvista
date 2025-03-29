@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCRMStore } from '@/store/crmStore';
 import { format } from 'date-fns';
-import { CalendarIcon, PlusCircle } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -22,11 +22,11 @@ import { CompanyForm } from '@/components/forms/CompanyForm';
 import { TagForm } from '@/components/forms/TagForm';
 
 const conversationSchema = z.object({
-  title: z.string().min(1, 'Title is required'),
+  title: z.string().optional(),
   date: z.date({
     required_error: "Date is required",
   }),
-  summary: z.string().min(1, 'Summary is required'),
+  summary: z.string().optional(),
   nextSteps: z.string().optional(),
 });
 
@@ -73,6 +73,11 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
   const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
   const [isTagFormOpen, setIsTagFormOpen] = useState(false);
 
+  // New states for participant search
+  const [participantSearchQuery, setParticipantSearchQuery] = useState('');
+  const [showParticipantResults, setShowParticipantResults] = useState(false);
+  const searchResultsRef = useRef<HTMLDivElement>(null);
+
   // Form setup
   const form = useForm<ConversationFormData>({
     resolver: zodResolver(conversationSchema),
@@ -90,6 +95,48 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     fetchIndividuals();
     fetchTags();
   }, [fetchCompanies, fetchIndividuals, fetchTags]);
+
+  // Filter individuals based on search query
+  const filteredIndividuals = individuals.filter(individual => {
+    const fullName = `${individual.first_name} ${individual.last_name}`.toLowerCase();
+    return fullName.includes(participantSearchQuery.toLowerCase());
+  });
+
+  // Sort individuals to prioritize company-associated individuals and recently interacted with
+  const sortedIndividuals = [...filteredIndividuals].sort((a, b) => {
+    // First prioritize selected company individuals
+    if (selectedCompanyId) {
+      if (a.company_id === selectedCompanyId && b.company_id !== selectedCompanyId) return -1;
+      if (a.company_id !== selectedCompanyId && b.company_id === selectedCompanyId) return 1;
+    }
+    
+    // Then sort alphabetically
+    return `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`);
+  });
+
+  // Get just the selected individuals for display
+  const selectedIndividuals = individuals.filter(individual => 
+    selectedIndividualIds.includes(individual.id)
+  );
+
+  // Close search results when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchResultsRef.current && !searchResultsRef.current.contains(event.target as Node)) {
+        setShowParticipantResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Remove a participant
+  const removeParticipant = (individualId: string) => {
+    setSelectedIndividualIds(prev => prev.filter(id => id !== individualId));
+  };
 
   // Handle individual selection
   const handleIndividualSelection = (individualId: string) => {
@@ -138,8 +185,12 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     try {
       const conversationData = {
         ...data,
+        // Set default title if none provided
+        title: data.title || "Conversation",
         date: data.date.toISOString(),
         companyId: selectedCompanyId,
+        // Use empty string instead of null for summary if not provided
+        summary: data.summary || "",
         nextSteps: data.nextSteps || null,
         tags: selectedTagIds,
         individualIds: selectedIndividualIds
@@ -164,7 +215,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         <Input
           id="title"
           {...form.register('title')}
-          placeholder="Conversation Title"
+          placeholder="Conversation Title (optional)"
         />
         {form.formState.errors.title && (
           <p className="text-red-500 text-sm mt-1">{form.formState.errors.title.message}</p>
@@ -229,7 +280,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             size="icon"
             onClick={() => setIsCompanyFormOpen(true)}
             className="flex-shrink-0"
-            title="Add New Company"
+            title="Create New Company"
           >
             <PlusCircle className="h-4 w-4" />
           </Button>
@@ -238,38 +289,111 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
       <div className="space-y-2">
         <Label>Participants</Label>
-        <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
-          {individuals.map((individual) => (
-            <Button
-              key={individual.id}
-              type="button"
-              variant={selectedIndividualIds.includes(individual.id) ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleIndividualSelection(individual.id)}
-              className={
-                selectedCompanyId && individual.company_id === selectedCompanyId
-                ? "border-blue-400"
-                : ""
-              }
+        
+        {/* Participant search and selection area */}
+        <div className="space-y-2">
+          {/* Search input */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <Input
+              type="text"
+              placeholder="Search participants..."
+              className="pl-10 pr-4"
+              value={participantSearchQuery}
+              onChange={(e) => setParticipantSearchQuery(e.target.value)}
+              onFocus={() => setShowParticipantResults(true)}
+            />
+          </div>
+          
+          {/* Search results dropdown */}
+          {showParticipantResults && (
+            <div 
+              ref={searchResultsRef}
+              className="absolute z-10 mt-1 w-full max-h-60 overflow-auto bg-white border border-gray-200 rounded-md shadow-lg"
             >
-              {individual.first_name} {individual.last_name}
-            </Button>
-          ))}
-          {individuals.length === 0 && (
-            <p className="text-gray-400 text-sm">No individuals available</p>
+              <div className="p-2">
+                {sortedIndividuals.length > 0 ? (
+                  sortedIndividuals.map(individual => (
+                    <div
+                      key={individual.id}
+                      className={`
+                        p-2 cursor-pointer rounded-md flex items-center justify-between
+                        ${selectedIndividualIds.includes(individual.id) ? 'bg-blue-50' : 'hover:bg-gray-100'}
+                        ${selectedCompanyId && individual.company_id === selectedCompanyId ? 'border-l-4 border-blue-400 pl-1' : ''}
+                      `}
+                      onClick={() => {
+                        handleIndividualSelection(individual.id);
+                        setParticipantSearchQuery('');
+                      }}
+                    >
+                      <span>
+                        {individual.first_name} {individual.last_name}
+                        {individual.company_id && (
+                          <span className="text-xs text-gray-500 ml-1">
+                            {companies.find(c => c.id === individual.company_id)?.name}
+                          </span>
+                        )}
+                      </span>
+                      {selectedIndividualIds.includes(individual.id) && (
+                        <span className="text-blue-500 text-sm">✓</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-gray-500 text-sm p-2">No matching individuals found</p>
+                )}
+                
+                {/* Add individual option at the bottom */}
+                <div 
+                  className="p-2 mt-1 cursor-pointer rounded-md hover:bg-gray-100 text-blue-600 flex items-center border-t border-gray-100"
+                  onClick={() => {
+                    setIsIndividualFormOpen(true);
+                    setShowParticipantResults(false);
+                  }}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  <span>Create new individual</span>
+                </div>
+              </div>
+            </div>
           )}
           
-          {/* Add Individual Button */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsIndividualFormOpen(true)}
-            className="flex items-center text-blue-600 hover:text-blue-800"
-          >
-            <PlusCircle className="h-4 w-4 mr-1" />
-            Add Individual
-          </Button>
+          {/* Selected participants display */}
+          <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
+            {selectedIndividuals.length > 0 ? (
+              selectedIndividuals.map(individual => (
+                <div 
+                  key={individual.id}
+                  className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md flex items-center text-sm"
+                >
+                  <span>{individual.first_name} {individual.last_name}</span>
+                  <button
+                    type="button"
+                    className="ml-1 hover:text-blue-900"
+                    onClick={() => removeParticipant(individual.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            ) : (
+              <p className="text-gray-400 text-sm">No participants selected</p>
+            )}
+            
+            {/* Add Individual Button (inside selected area) */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsIndividualFormOpen(true)}
+              className="flex items-center text-blue-600 hover:text-blue-800"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Create New Individual
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -305,7 +429,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             className="flex items-center text-blue-600 hover:text-blue-800"
           >
             <PlusCircle className="h-4 w-4 mr-1" />
-            Add Tag
+            Create New Tag
           </Button>
         </div>
       </div>
@@ -315,7 +439,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         <Textarea
           id="summary"
           {...form.register('summary')}
-          placeholder="Enter conversation summary"
+          placeholder="Enter conversation summary (optional)"
           rows={4}
         />
         {form.formState.errors.summary && (
