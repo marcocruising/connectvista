@@ -1,131 +1,227 @@
-
 import { create } from 'zustand';
-import { companies, conversations, individuals, tags } from '@/data/mockData';
-import { Company, Conversation, Individual, Tag } from '@/types/crm';
+import { Tag, Company, Individual, Conversation } from '@/types/crm';
+import { tagService } from '@/services/tagService';
+import { companyService } from '@/services/companyService';
+import { individualService } from '@/services/individualService';
+import { conversationService } from '@/services/conversationService';
+import { authService } from '@/services/authService';
 
 interface CRMState {
+  // Data
   companies: Company[];
   individuals: Individual[];
   conversations: Conversation[];
   tags: Tag[];
+  
+  // UI state
   searchQuery: string;
   selectedTags: string[];
+  isLoading: boolean;
+  error: string | null;
+  
+  // Auth state
+  user: any | null;
+  isAuthenticated: boolean;
+  
+  // Actions
   setSearchQuery: (query: string) => void;
   setSelectedTags: (tagIds: string[]) => void;
-  addCompany: (company: Omit<Company, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateCompany: (id: string, companyData: Partial<Company>) => void;
-  deleteCompany: (id: string) => void;
-  addIndividual: (individual: Omit<Individual, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateIndividual: (id: string, individualData: Partial<Individual>) => void;
-  deleteIndividual: (id: string) => void;
-  addConversation: (conversation: Omit<Conversation, 'id' | 'createdAt' | 'updatedAt'>) => void;
-  updateConversation: (id: string, conversationData: Partial<Conversation>) => void;
-  deleteConversation: (id: string) => void;
-  addTag: (tag: Omit<Tag, 'id'>) => void;
-  updateTag: (id: string, tagData: Partial<Tag>) => void;
-  deleteTag: (id: string) => void;
+  clearError: () => void;
+  
+  // Data fetching
+  fetchTags: () => Promise<void>;
+  fetchCompanies: () => Promise<void>;
+  fetchIndividuals: () => Promise<void>;
+  fetchConversations: () => Promise<void>;
+  
+  // CRUD operations
+  addTag: (tag: Omit<Tag, 'id' | 'created_at' | 'created_by'>) => Promise<void>;
+  updateTag: (id: string, tag: Partial<Tag>) => Promise<void>;
+  deleteTag: (id: string) => Promise<void>;
+  
+  addCompany: (company: Omit<Company, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<void>;
+  updateCompany: (id: string, company: Partial<Company>) => Promise<void>;
+  deleteCompany: (id: string) => Promise<void>;
+  
+  addIndividual: (individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<void>;
+  updateIndividual: (id: string, individual: Partial<Individual>) => Promise<void>;
+  deleteIndividual: (id: string) => Promise<void>;
+  
+  addConversation: (
+    conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>,
+    participantIds: string[],
+    individualIds: string[]
+  ) => Promise<void>;
+  updateConversation: (id: string, conversation: Partial<Conversation>) => Promise<void>;
+  deleteConversation: (id: string) => Promise<void>;
+  
+  // Auth actions
+  initializeAuth: () => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
-export const useCRMStore = create<CRMState>((set) => ({
-  companies,
-  individuals,
-  conversations,
-  tags,
+export const useCRMStore = create<CRMState>((set, get) => ({
+  // Initial state
+  companies: [],
+  individuals: [],
+  conversations: [],
+  tags: [],
   searchQuery: '',
   selectedTags: [],
-  
+  isLoading: false,
+  error: null,
+
+  // Auth state
+  user: null,
+  isAuthenticated: false,
+
+  // UI actions
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
-  
-  addCompany: (company) => set((state) => {
-    const newCompany: Company = {
-      ...company,
-      id: `company-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return { companies: [...state.companies, newCompany] };
-  }),
-  
-  updateCompany: (id, companyData) => set((state) => ({
-    companies: state.companies.map((company) =>
-      company.id === id
-        ? { ...company, ...companyData, updatedAt: new Date().toISOString() }
-        : company
-    ),
-  })),
-  
-  deleteCompany: (id) => set((state) => ({
-    companies: state.companies.filter((company) => company.id !== id),
-  })),
-  
-  addIndividual: (individual) => set((state) => {
-    const newIndividual: Individual = {
-      ...individual,
-      id: `individual-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return { individuals: [...state.individuals, newIndividual] };
-  }),
-  
-  updateIndividual: (id, individualData) => set((state) => ({
-    individuals: state.individuals.map((individual) =>
-      individual.id === id
-        ? { ...individual, ...individualData, updatedAt: new Date().toISOString() }
-        : individual
-    ),
-  })),
-  
-  deleteIndividual: (id) => set((state) => ({
-    individuals: state.individuals.filter((individual) => individual.id !== id),
-  })),
-  
-  addConversation: (conversation) => set((state) => {
-    const newConversation: Conversation = {
-      ...conversation,
-      id: `conversation-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    return { conversations: [...state.conversations, newConversation] };
-  }),
-  
-  updateConversation: (id, conversationData) => set((state) => ({
-    conversations: state.conversations.map((conversation) =>
-      conversation.id === id
-        ? { ...conversation, ...conversationData, updatedAt: new Date().toISOString() }
-        : conversation
-    ),
-  })),
-  
-  deleteConversation: (id) => set((state) => ({
-    conversations: state.conversations.filter((conversation) => conversation.id !== id),
-  })),
-  
-  addTag: (tag) => set((state) => {
-    const newTag: Tag = {
-      ...tag,
-      id: `tag-${Date.now()}`,
-    };
-    return { tags: [...state.tags, newTag] };
-  }),
-  
-  updateTag: (id, tagData) => set((state) => ({
-    tags: state.tags.map((tag) =>
-      tag.id === id
-        ? { ...tag, ...tagData }
-        : tag
-    ),
-  })),
-  
-  deleteTag: (id) => set((state) => ({
-    tags: state.tags.filter((tag) => tag.id !== id),
-    individuals: state.individuals.map(individual => ({
-      ...individual,
-      tags: individual.tags.filter(tag => tag.id !== id)
-    }))
-  })),
+  clearError: () => set({ error: null }),
+
+  // Data fetching
+  fetchTags: async () => {
+    try {
+      set({ isLoading: true });
+      const tags = await tagService.getTags();
+      set({ tags, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchCompanies: async () => {
+    try {
+      set({ isLoading: true });
+      const companies = await companyService.getCompanies();
+      set({ companies, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // ... similar implementations for fetchIndividuals and fetchConversations
+
+  // CRUD operations
+  addTag: async (tag) => {
+    try {
+      set({ isLoading: true });
+      const newTag = await tagService.createTag(tag);
+      set(state => ({ tags: [...state.tags, newTag], isLoading: false }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // Companies
+  addCompany: async (company) => {
+    try {
+      set({ isLoading: true });
+      const newCompany = await companyService.createCompany(company);
+      set(state => ({ 
+        companies: [...state.companies, newCompany], 
+        isLoading: false 
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  updateCompany: async (id, companyData) => {
+    try {
+      set({ isLoading: true });
+      const updatedCompany = await companyService.updateCompany(id, companyData);
+      set(state => ({
+        companies: state.companies.map(company => 
+          company.id === id ? updatedCompany : company
+        ),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteCompany: async (id) => {
+    try {
+      set({ isLoading: true });
+      await companyService.deleteCompany(id);
+      set(state => ({
+        companies: state.companies.filter(company => company.id !== id),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // Individuals
+  addIndividual: async (individual) => {
+    try {
+      set({ isLoading: true });
+      const newIndividual = await individualService.createIndividual(individual);
+      set(state => ({
+        individuals: [...state.individuals, newIndividual],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // ... similar implementations for updateIndividual and deleteIndividual
+
+  // Conversations
+  addConversation: async (conversation, participantIds, individualIds) => {
+    try {
+      set({ isLoading: true });
+      const newConversation = await conversationService.createConversation(
+        conversation,
+        participantIds,
+        individualIds
+      );
+      set(state => ({
+        conversations: [...state.conversations, newConversation],
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  // ... similar implementations for updateConversation and deleteConversation
+
+  // Auth actions
+  initializeAuth: async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      set({ user, isAuthenticated: !!user });
+    } catch (error) {
+      set({ user: null, isAuthenticated: false });
+    }
+  },
+
+  signIn: async (email: string, password: string) => {
+    try {
+      set({ isLoading: true });
+      const { user } = await authService.signIn(email, password);
+      set({ user, isAuthenticated: true, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  signOut: async () => {
+    try {
+      set({ isLoading: true });
+      await authService.signOut();
+      set({ user: null, isAuthenticated: false, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
 }));
 
 // Utility functions to filter data based on search query and tags
