@@ -114,10 +114,12 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
   fetchConversations: async () => {
     try {
-      set({ isLoading: true });
+      set({ isLoading: true, error: null });
       const conversations = await conversationService.getConversations();
       set({ conversations, isLoading: false });
+      console.log("Fetched conversations in store:", conversations);
     } catch (error) {
+      console.error("Error fetching conversations in store:", error);
       set({ error: (error as Error).message, isLoading: false });
     }
   },
@@ -266,16 +268,24 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   // Conversations
-  addConversation: async (conversationData) => {
+  addConversation: async (conversation, tagIds, individualIds) => {
     try {
-      set({ isLoading: true });
+      set({ isLoading: true, error: null });
+      const conversationData = {
+        ...conversation,
+        tags: tagIds,
+        individualIds
+      };
+      console.log("Adding conversation in store:", conversationData);
       const newConversation = await conversationService.createConversation(conversationData);
       set(state => ({
         conversations: [...state.conversations, newConversation],
         isLoading: false
       }));
+      console.log("Added conversation in store:", newConversation);
       return newConversation;
     } catch (error) {
+      console.error("Error adding conversation in store:", error);
       set({ error: (error as Error).message, isLoading: false });
       throw error;
     }
@@ -283,31 +293,32 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
   updateConversation: async (id, conversationData) => {
     try {
-      set({ isLoading: true });
-      // Tag IDs should be passed as part of conversationData
-      const updatedConversation = await conversationService.updateConversation(id, conversationData);
-      set(state => ({
-        conversations: state.conversations.map(conversation => 
-          conversation.id === id ? updatedConversation : conversation
-        ),
-        isLoading: false
-      }));
-      return updatedConversation;
+      set({ isLoading: true, error: null });
+      console.log("Updating conversation in store:", id, conversationData);
+      await conversationService.updateConversation(id, conversationData);
+      
+      // After updating in the database, refetch all conversations to ensure state is in sync
+      await get().fetchConversations();
+      
+      set({ isLoading: false });
     } catch (error) {
+      console.error("Error updating conversation in store:", error);
       set({ error: (error as Error).message, isLoading: false });
-      throw error;
     }
   },
 
   deleteConversation: async (id) => {
     try {
-      set({ isLoading: true });
+      set({ isLoading: true, error: null });
+      console.log("Deleting conversation in store:", id);
       await conversationService.deleteConversation(id);
       set(state => ({
         conversations: state.conversations.filter(conversation => conversation.id !== id),
         isLoading: false
       }));
+      console.log("Deleted conversation in store");
     } catch (error) {
+      console.error("Error deleting conversation in store:", error);
       set({ error: (error as Error).message, isLoading: false });
     }
   },

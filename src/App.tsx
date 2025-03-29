@@ -16,6 +16,7 @@ import { useCRMStore } from "./store/crmStore";
 import CompanyDetail from './pages/CompanyDetail';
 import IndividualDetail from './pages/IndividualDetail';
 import ConversationDetail from './pages/ConversationDetail';
+import Debug from "./pages/Debug";
 
 const queryClient = new QueryClient();
 
@@ -56,6 +57,7 @@ const App = () => (
             <Route path="/companies/:id" element={<CompanyDetail />} />
             <Route path="/individuals/:id" element={<IndividualDetail />} />
             <Route path="/conversations/:id" element={<ConversationDetail />} />
+            <Route path="/debug" element={<Debug />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
