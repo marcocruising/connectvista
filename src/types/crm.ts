@@ -29,7 +29,7 @@ export interface Individual {
   phone?: string;
   company_id?: string;
   role?: string;
-  contact_type?: 'Investor' | 'Customer' | 'Potential Employee' | 'Partner' | 'Other';
+  contact_type?: string;
   description?: string;
   created_at: string;
   updated_at: string;

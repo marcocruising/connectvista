@@ -17,9 +17,11 @@ export const individualService = {
   },
 
   async createIndividual(individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) {
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const { data, error } = await supabase
       .from('individuals')
-      .insert([individual])
+      .insert([{ ...individual, created_by: user?.id }])
       .select()
       .single();
     

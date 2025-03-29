@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BuiltInIcon } from '@/components/ui/icon';
@@ -71,7 +70,10 @@ const AppSidebar = () => {
             <SidebarMenu>
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton asChild active={location.pathname === item.path}>
+                  <SidebarMenuButton 
+                    asChild 
+                    data-active={location.pathname === item.path ? "true" : "false"}
+                  >
                     <Link to={item.path} className="flex items-center">
                       <BuiltInIcon as={item.icon} className="w-5 h-5 mr-3" />
                       <span>{item.title}</span>

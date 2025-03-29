@@ -51,7 +51,7 @@ const Individuals = () => {
   };
 
   const columns = [
-    columnHelper.accessor((row) => `${row.firstName} ${row.lastName}`, {
+    columnHelper.accessor((row) => `${row.first_name} ${row.last_name}`, {
       id: 'name',
       header: 'Name',
       cell: (info) => (
@@ -60,15 +60,15 @@ const Individuals = () => {
         </Link>
       ),
     }),
-    columnHelper.accessor('title', {
+    columnHelper.accessor('role', {
       header: 'Title',
-      cell: (info) => info.getValue(),
+      cell: (info) => info.getValue() || '',
     }),
     columnHelper.accessor('email', {
       header: 'Email',
       cell: (info) => <a href={`mailto:${info.getValue()}`} className="text-crm-blue">{info.getValue()}</a>,
     }),
-    columnHelper.accessor('companyId', {
+    columnHelper.accessor('company_id', {
       header: 'Company',
       cell: (info) => {
         const companyId = info.getValue();
@@ -83,13 +83,16 @@ const Individuals = () => {
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
-      cell: (info) => (
-        <div className="flex flex-wrap gap-1">
-          {info.getValue().map((tag) => (
-            <TagBadge key={tag.id} tag={tag} />
-          ))}
-        </div>
-      ),
+      cell: (info) => {
+        const tags = info.getValue() || [];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
+          </div>
+        );
+      },
     }),
     columnHelper.display({
       id: 'actions',
@@ -206,7 +209,7 @@ const Individuals = () => {
             </DialogDescription>
           </DialogHeader>
           <p>
-            Are you sure you want to delete {selectedIndividual?.firstName} {selectedIndividual?.lastName}?
+            Are you sure you want to delete {selectedIndividual?.first_name} {selectedIndividual?.last_name}?
           </p>
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
