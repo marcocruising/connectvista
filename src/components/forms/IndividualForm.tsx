@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useCRMStore } from '@/store/crmStore';
 
 const individualSchema = z.object({
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  first_name: z.string().min(1, 'First name is required'),
+  last_name: z.string().min(1, 'Last name is required'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
   phone: z.string().optional(),
-  title: z.string().optional(),
-  notes: z.string().optional(),
+  role: z.string().optional(),
+  description: z.string().optional(),
 });
 
 type IndividualFormData = z.infer<typeof individualSchema>;
@@ -29,12 +29,12 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
   const { register, handleSubmit, formState: { errors } } = useForm<IndividualFormData>({
     resolver: zodResolver(individualSchema),
     defaultValues: {
-      firstName: initialData?.firstName || '',
-      lastName: initialData?.lastName || '',
+      first_name: initialData?.first_name || '',
+      last_name: initialData?.last_name || '',
       email: initialData?.email || '',
       phone: initialData?.phone || '',
-      title: initialData?.title || '',
-      notes: initialData?.notes || '',
+      role: initialData?.role || '',
+      description: initialData?.description || '',
     },
   });
 
@@ -56,21 +56,21 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Input
-            {...register('firstName')}
+            {...register('first_name')}
             placeholder="First Name"
           />
-          {errors.firstName && (
-            <p className="text-red-500 text-sm mt-1">{errors.firstName.message}</p>
+          {errors.first_name && (
+            <p className="text-red-500 text-sm mt-1">{errors.first_name.message}</p>
           )}
         </div>
 
         <div>
           <Input
-            {...register('lastName')}
+            {...register('last_name')}
             placeholder="Last Name"
           />
-          {errors.lastName && (
-            <p className="text-red-500 text-sm mt-1">{errors.lastName.message}</p>
+          {errors.last_name && (
+            <p className="text-red-500 text-sm mt-1">{errors.last_name.message}</p>
           )}
         </div>
       </div>
@@ -95,14 +95,14 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
 
       <div>
         <Input
-          {...register('title')}
+          {...register('role')}
           placeholder="Job Title"
         />
       </div>
 
       <div>
         <Textarea
-          {...register('notes')}
+          {...register('description')}
           placeholder="Notes"
           rows={4}
         />

@@ -102,7 +102,25 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  // ... similar implementations for fetchIndividuals and fetchConversations
+  fetchIndividuals: async () => {
+    try {
+      set({ isLoading: true });
+      const individuals = await individualService.getIndividuals();
+      set({ individuals, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchConversations: async () => {
+    try {
+      set({ isLoading: true });
+      const conversations = await conversationService.getConversations();
+      set({ conversations, isLoading: false });
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
 
   // CRUD operations
   addTag: async (tag) => {
@@ -200,7 +218,33 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  // ... similar implementations for updateIndividual and deleteIndividual
+  updateIndividual: async (id, individualData) => {
+    try {
+      set({ isLoading: true });
+      const updatedIndividual = await individualService.updateIndividual(id, individualData);
+      set(state => ({
+        individuals: state.individuals.map(individual => 
+          individual.id === id ? updatedIndividual : individual
+        ),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteIndividual: async (id) => {
+    try {
+      set({ isLoading: true });
+      await individualService.deleteIndividual(id);
+      set(state => ({
+        individuals: state.individuals.filter(individual => individual.id !== id),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
 
   // Conversations
   addConversation: async (conversation, participantIds, individualIds) => {
@@ -220,7 +264,31 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  // ... similar implementations for updateConversation and deleteConversation
+  updateConversation: async (id, conversation) => {
+    try {
+      set({ isLoading: true });
+      const updatedConversation = await conversationService.updateConversation(id, conversation);
+      set(state => ({
+        conversations: state.conversations.map(c => c.id === id ? updatedConversation : c),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  deleteConversation: async (id) => {
+    try {
+      set({ isLoading: true });
+      await conversationService.deleteConversation(id);
+      set(state => ({
+        conversations: state.conversations.filter(c => c.id !== id),
+        isLoading: false
+      }));
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+    }
+  },
 
   // Auth actions
   initializeAuth: async () => {
@@ -260,15 +328,15 @@ export const useFilteredIndividuals = () => {
   return individuals.filter((individual) => {
     const matchesSearch =
       searchQuery === '' ||
-      individual.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      individual.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      individual.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      individual.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      individual.notes.toLowerCase().includes(searchQuery.toLowerCase());
+      individual.first_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      individual.last_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (individual.email?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (individual.role?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false) ||
+      (individual.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
     
     const matchesTags =
       selectedTags.length === 0 ||
-      individual.tags.some((tag) => selectedTags.includes(tag.id));
+      (individual.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
     
     return matchesSearch && matchesTags;
   });
