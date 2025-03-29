@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
@@ -120,6 +119,37 @@ const Dashboard = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity Summary</CardTitle>
+          <CardDescription>Overview of your CRM activity</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span>Total Companies</span>
+              <span className="font-bold">{companies.length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Total Individuals</span>
+              <span className="font-bold">{individuals.length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Total Conversations</span>
+              <span className="font-bold">{conversations.length}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span>Recent Activity</span>
+              <span className="font-bold">
+                {conversations.length > 0 
+                  ? format(new Date(conversations[0].date), 'MMM d, yyyy')
+                  : 'No recent activity'}
+              </span>
+            </div>
           </div>
         </CardContent>
       </Card>
