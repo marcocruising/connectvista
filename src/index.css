@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -93,4 +92,15 @@
   body {
     @apply bg-crm-background text-crm-text;
   }
+}
+
+/* Add these styles */
+.conversation-content {
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.card-content-scrollable {
+  max-height: 300px;
+  overflow-y: auto;
 }
