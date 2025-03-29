@@ -7,8 +7,15 @@ import { DataTable } from '@/components/shared/DataTable';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { createColumnHelper } from '@tanstack/react-table';
 import { Company } from '@/types/crm';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle,
+  DialogDescription 
+} from '@/components/ui/dialog';
 import { CompanyForm } from '@/components/forms/CompanyForm';
+import TagBadge from '@/components/shared/TagBadge';
 
 const columnHelper = createColumnHelper<Company>();
 
@@ -50,6 +57,19 @@ const Companies = () => {
     columnHelper.accessor('website', {
       header: 'Website',
       cell: (info) => info.getValue() || '-',
+    }),
+    columnHelper.accessor('tags', {
+      header: 'Tags',
+      cell: (info) => {
+        const tags = info.getValue() || [];
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} />
+            ))}
+          </div>
+        );
+      },
     }),
     columnHelper.accessor('description', {
       header: 'Description',
@@ -104,7 +124,10 @@ const Companies = () => {
           </p>
         </div>
         <Button 
-          onClick={() => setIsEditDialogOpen(true)} 
+          onClick={() => {
+            setSelectedCompany(null);
+            setIsEditDialogOpen(true);
+          }} 
           className="bg-crm-blue hover:bg-crm-darkBlue"
         >
           <PlusCircle className="mr-2 h-5 w-5" />
@@ -121,14 +144,14 @@ const Companies = () => {
             <DialogTitle>
               {selectedCompany ? 'Edit Company' : 'Add Company'}
             </DialogTitle>
+            <DialogDescription>
+              {selectedCompany 
+                ? 'Update the company details below.' 
+                : 'Enter new company details below.'}
+            </DialogDescription>
           </DialogHeader>
           <CompanyForm 
-            initialData={selectedCompany ? {
-              id: selectedCompany.id,
-              name: selectedCompany.name,
-              website: selectedCompany.website,
-              description: selectedCompany.description,
-            } : undefined}
+            initialData={selectedCompany || undefined}
             onSuccess={() => {
               setIsEditDialogOpen(false);
               setSelectedCompany(null);
@@ -142,8 +165,10 @@ const Companies = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedCompany?.name}? This action cannot be undone.
+            </DialogDescription>
           </DialogHeader>
-          <p>Are you sure you want to delete {selectedCompany?.name}? This action cannot be undone.</p>
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancel
