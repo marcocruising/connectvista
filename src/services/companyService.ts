@@ -63,5 +63,61 @@ export const companyService = {
       .eq('tag_id', tagId);
     
     if (error) throw error;
+  },
+
+  async updateCompanyTags(companyId: string, tagIds: string[]) {
+    try {
+      // First, remove all existing tags for this company
+      const { error: deleteError } = await supabase
+        .from('company_tags')
+        .delete()
+        .eq('company_id', companyId);
+      
+      if (deleteError) throw deleteError;
+      
+      // Then add new tag associations
+      if (tagIds.length > 0) {
+        const tagRows = tagIds.map(tagId => ({
+          company_id: companyId,
+          tag_id: tagId
+        }));
+        
+        const { error: insertError } = await supabase
+          .from('company_tags')
+          .insert(tagRows);
+        
+        if (insertError) throw insertError;
+      }
+      
+      // Finally, get the updated company with its tags
+      const { data, error } = await supabase
+        .from('companies')
+        .select(`
+          *,
+          tags (*)
+        `)
+        .eq('id', companyId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error updating company tags:', error);
+      throw error;
+    }
+  },
+  
+  async getCompany(id: string) {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        *,
+        tags (*)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) throw error;
+    return data as Company;
   }
 }; 

@@ -62,6 +62,7 @@ interface CRMState {
   
   // New functions
   updateIndividualWithTags: (individualId: string, tagIds: string[]) => Promise<void>;
+  updateCompanyWithTags: (id: string, tagIds: string[]) => Promise<void>;
 }
 
 export const useCRMStore = create<CRMState>((set, get) => ({
@@ -174,8 +175,10 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         companies: [...state.companies, newCompany], 
         isLoading: false 
       }));
+      return newCompany; // Return the new company for tag handling
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error; // Re-throw to allow handling in the form
     }
   },
 
@@ -189,8 +192,10 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         ),
         isLoading: false
       }));
+      return updatedCompany; // Return the updated company for tag handling
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
+      throw error; // Re-throw to allow handling in the form
     }
   },
 
@@ -355,6 +360,28 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       }));
     } catch (error) {
       console.error('Error updating individual tags in store:', error);
+    }
+  },
+
+  updateCompanyWithTags: async (id, tagIds) => {
+    try {
+      set({ isLoading: true });
+      
+      // Fetch the updated company with tags
+      const updatedCompany = await companyService.getCompany(id);
+      
+      // Update the company in the store
+      set(state => ({
+        companies: state.companies.map(company => 
+          company.id === id ? updatedCompany : company
+        ),
+        isLoading: false
+      }));
+      
+      return updatedCompany;
+    } catch (error) {
+      set({ error: (error as Error).message, isLoading: false });
+      throw error;
     }
   },
 }));
