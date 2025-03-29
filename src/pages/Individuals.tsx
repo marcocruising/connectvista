@@ -58,7 +58,7 @@ const Individuals = () => {
           </Link>
         );
       },
-      size: 230,
+      size: 250,
     }),
     columnHelper.accessor('company_id', {
       header: 'Company',
@@ -73,12 +73,12 @@ const Individuals = () => {
           </Link>
         ) : '-';
       },
-      size: 200,
+      size: 180,
     }),
     columnHelper.accessor('job_title', {
       header: 'Title',
       cell: (info) => info.getValue() || '-',
-      size: 180,
+      size: 150,
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
@@ -116,7 +116,7 @@ const Individuals = () => {
           </Button>
         </div>
       ),
-      size: 100,
+      size: 80,
     }),
   ];
 

@@ -34,7 +34,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
 
   return (
     <div className="rounded-md border bg-white">
-      <Table className="table-fixed w-full">
+      <Table className="w-full table-fixed">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
@@ -59,9 +59,13 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               <TableRow
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
+                className="min-h-[60px]"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}>
+                  <TableCell 
+                    key={cell.id}
+                    className="py-3"
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
