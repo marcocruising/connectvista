@@ -504,3 +504,30 @@ export const useFilteredConversations = () => {
     return matchesSearch && matchesTags;
   });
 };
+
+const initializeStore = () => {
+  // Try to load cached data from localStorage first
+  const cachedData = localStorage.getItem('crmData');
+  if (cachedData) {
+    const parsedData = JSON.parse(cachedData);
+    setConversations(parsedData.conversations || []);
+    setIndividuals(parsedData.individuals || []);
+    setCompanies(parsedData.companies || []);
+  }
+  
+  // Then fetch fresh data from the API
+  fetchAllData();
+};
+
+const fetchAllData = async () => {
+  const convos = await fetchConversations();
+  const indivs = await fetchIndividuals();
+  const comps = await fetchCompanies();
+  
+  // Cache the data in localStorage
+  localStorage.setItem('crmData', JSON.stringify({
+    conversations: convos,
+    individuals: indivs,
+    companies: comps
+  }));
+};
