@@ -176,8 +176,8 @@ const Conversations = () => {
         </Button>
       </div>
       
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="md:flex-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
           <SearchBar 
             value={searchQuery} 
             onChange={setSearchQuery} 
