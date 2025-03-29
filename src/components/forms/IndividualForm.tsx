@@ -16,6 +16,9 @@ import {
 import { Label } from '@/components/ui/label';
 import TagBadge from '@/components/shared/TagBadge';
 import { individualService } from '@/services/individualService';
+import { PlusCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { CompanyForm } from '@/components/forms/CompanyForm';
 
 const individualSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -31,10 +34,11 @@ type IndividualFormData = z.infer<typeof individualSchema>;
 
 interface IndividualFormProps {
   initialData?: IndividualFormData & { id?: string; tags?: any[] };
-  onSuccess?: () => void;
+  initialCompanyId?: string;
+  onSuccess?: (newIndividualId: string) => void;
 }
 
-export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) => {
+export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: IndividualFormProps) => {
   const { 
     addIndividual, 
     updateIndividual, 
@@ -48,6 +52,12 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
     initialData?.tags?.map(tag => tag.id) || []
   );
   
+  const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
+  
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(
+    initialData?.company_id || initialCompanyId
+  );
+
   const { register, handleSubmit, setValue, formState: { errors }, watch } = useForm<IndividualFormData>({
     resolver: zodResolver(individualSchema),
     defaultValues: {
@@ -55,18 +65,24 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
       last_name: initialData?.last_name || '',
       email: initialData?.email || '',
       phone: initialData?.phone || '',
-      company_id: initialData?.company_id || null,
+      company_id: initialData?.company_id || initialCompanyId || undefined,
       role: initialData?.role || '',
       description: initialData?.description || '',
     },
   });
 
-  const selectedCompanyId = watch('company_id') || 'none';
+  const selectedCompanyIdWatch = watch('company_id') || 'none';
 
   useEffect(() => {
     fetchCompanies();
     fetchTags();
   }, [fetchCompanies, fetchTags]);
+
+  const handleCompanyCreated = (newCompanyId: string) => {
+    setSelectedCompanyId(newCompanyId);
+    setValue('company_id', newCompanyId);
+    setIsCompanyFormOpen(false);
+  };
 
   const onSubmit = async (data: IndividualFormData) => {
     try {
@@ -92,7 +108,7 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
           await updateIndividualWithTags(newIndividual.id, selectedTagIds);
         }
       }
-      onSuccess?.();
+      onSuccess?.(initialData?.id || newIndividual?.id || '');
     } catch (error) {
       console.error('Failed to save individual:', error);
     }
@@ -154,22 +170,41 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
 
       <div className="space-y-2">
         <Label htmlFor="company">Company</Label>
-        <Select
-          value={selectedCompanyId}
-          onValueChange={handleCompanyChange}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a company" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            {companies.map((company) => (
-              <SelectItem key={company.id} value={company.id}>
-                {company.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex space-x-2 items-center">
+          <div className="flex-grow">
+            <Select
+              value={selectedCompanyIdWatch}
+              onValueChange={(value) => {
+                const companyId = value === "none" ? undefined : value;
+                setSelectedCompanyId(companyId);
+                setValue('company_id', companyId);
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsCompanyFormOpen(true)}
+            className="flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
+          >
+            <PlusCircle className="h-4 w-4 mr-1" />
+            Create New Company
+          </Button>
+        </div>
       </div>
 
       <div>
@@ -215,6 +250,20 @@ export const IndividualForm = ({ initialData, onSuccess }: IndividualFormProps) 
       <Button type="submit" className="w-full">
         {initialData?.id ? 'Save Changes' : 'Add Individual'}
       </Button>
+      
+      <Dialog open={isCompanyFormOpen} onOpenChange={setIsCompanyFormOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Company</DialogTitle>
+            <DialogDescription>
+              Fill in the details to create a new company.
+            </DialogDescription>
+          </DialogHeader>
+          <CompanyForm 
+            onSuccess={(newCompanyId) => handleCompanyCreated(newCompanyId)} 
+          />
+        </DialogContent>
+      </Dialog>
     </form>
   );
 }; 
