@@ -44,7 +44,9 @@ const IndividualDetail = () => {
     fetchIndividuals();
     fetchCompanies();
     fetchConversations();
-  }, [fetchIndividuals, fetchCompanies, fetchConversations]);
+    
+    console.log("IndividualDetail - Loading data for individual:", id);
+  }, [fetchIndividuals, fetchCompanies, fetchConversations, id]);
 
   const individual = individuals.find(i => i.id === id);
   
@@ -52,9 +54,14 @@ const IndividualDetail = () => {
   const company = individual?.company_id ? companies.find(c => c.id === individual.company_id) : null;
   
   // Get related conversations
-  const individualConversations = conversations.filter(c => 
-    c.individualIds && c.individualIds.includes(id!)
-  );
+  const individualConversations = conversations.filter(c => {
+    const matches = c.individualIds && c.individualIds.includes(id!);
+    console.log(`Conversation ${c.id} (${c.title}) individual match for ${id}: ${matches}`, 
+      c.individualIds);
+    return matches;
+  });
+
+  console.log("Individual conversations found:", individualConversations.length, individualConversations);
 
   if (!individual) {
     return (

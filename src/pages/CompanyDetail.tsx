@@ -44,7 +44,9 @@ const CompanyDetail = () => {
     fetchCompanies();
     fetchIndividuals();
     fetchConversations();
-  }, [fetchCompanies, fetchIndividuals, fetchConversations]);
+    
+    console.log("CompanyDetail - Loading data for company:", id);
+  }, [fetchCompanies, fetchIndividuals, fetchConversations, id]);
 
   const company = companies.find(c => c.id === id);
   
@@ -52,7 +54,13 @@ const CompanyDetail = () => {
   const companyIndividuals = individuals.filter(i => i.company_id === id);
   
   // Get related conversations
-  const companyConversations = conversations.filter(c => c.companyId === id);
+  const companyConversations = conversations.filter(c => {
+    const matches = c.companyId === id;
+    console.log(`Conversation ${c.id} (${c.title}) company match for ${id}: ${matches}`, c);
+    return matches;
+  });
+
+  console.log("Company conversations found:", companyConversations.length, companyConversations);
 
   if (!company) {
     return (
