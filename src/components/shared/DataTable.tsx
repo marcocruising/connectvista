@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   flexRender,
@@ -7,20 +6,18 @@ import {
   getSortedRowModel,
   SortingState,
   useReactTable,
+  type ColumnDef,
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
 
-interface DataTableProps<TData, TValue> {
-  columns: any[];
+interface DataTableProps<TData> {
+  columns: ColumnDef<TData, any>[];
   data: TData[];
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-}: DataTableProps<TData, TValue>) {
+export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const table = useReactTable({
