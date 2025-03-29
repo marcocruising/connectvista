@@ -18,6 +18,8 @@ import { Tag } from '@/types/crm';
 import { Conversation } from '@/types/crm';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { IndividualForm } from '@/components/forms/IndividualForm';
+import { CompanyForm } from '@/components/forms/CompanyForm';
+import { TagForm } from '@/components/forms/TagForm';
 
 const conversationSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -68,6 +70,8 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
   // Add new state for the individual form dialog
   const [isIndividualFormOpen, setIsIndividualFormOpen] = useState(false);
+  const [isCompanyFormOpen, setIsCompanyFormOpen] = useState(false);
+  const [isTagFormOpen, setIsTagFormOpen] = useState(false);
 
   // Form setup
   const form = useForm<ConversationFormData>({
@@ -115,6 +119,18 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     // Add the newly created individual to the selected individuals
     setSelectedIndividualIds(prev => [...prev, newIndividualId]);
     setIsIndividualFormOpen(false);
+  };
+
+  // Handle successful company creation
+  const handleCompanyCreated = (newCompanyId: string) => {
+    setSelectedCompanyId(newCompanyId);
+    setIsCompanyFormOpen(false);
+  };
+
+  // Handle successful tag creation
+  const handleTagCreated = (newTagId: string) => {
+    setSelectedTagIds(prev => [...prev, newTagId]);
+    setIsTagFormOpen(false);
   };
 
   // Handle form submission
@@ -186,22 +202,38 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
       <div>
         <Label htmlFor="company">Company</Label>
-        <Select
-          value={selectedCompanyId || "none"}
-          onValueChange={(value) => setSelectedCompanyId(value === "none" ? undefined : value)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a company" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="none">None</SelectItem>
-            {companies.map((company) => (
-              <SelectItem key={company.id} value={company.id}>
-                {company.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex space-x-2">
+          <div className="flex-grow">
+            <Select
+              value={selectedCompanyId || "none"}
+              onValueChange={(value) => setSelectedCompanyId(value === "none" ? undefined : value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a company" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {companies.map((company) => (
+                  <SelectItem key={company.id} value={company.id}>
+                    {company.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Add Company Button */}
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            onClick={() => setIsCompanyFormOpen(true)}
+            className="flex-shrink-0"
+            title="Add New Company"
+          >
+            <PlusCircle className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-2">
@@ -263,6 +295,18 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
           {tags.length === 0 && (
             <p className="text-gray-400 text-sm">No tags available</p>
           )}
+          
+          {/* Add Tag Button - moved inside the selection area */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsTagFormOpen(true)}
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
+            <PlusCircle className="h-4 w-4 mr-1" />
+            Add Tag
+          </Button>
         </div>
       </div>
 
@@ -305,6 +349,36 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
           <IndividualForm 
             initialCompanyId={selectedCompanyId} 
             onSuccess={(newIndividualId) => handleIndividualCreated(newIndividualId)} 
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Company Creation Dialog */}
+      <Dialog open={isCompanyFormOpen} onOpenChange={setIsCompanyFormOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>Add New Company</DialogTitle>
+            <DialogDescription>
+              Fill in the details to create a new company.
+            </DialogDescription>
+          </DialogHeader>
+          <CompanyForm 
+            onSuccess={(newCompanyId) => handleCompanyCreated(newCompanyId)} 
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Tag Creation Dialog */}
+      <Dialog open={isTagFormOpen} onOpenChange={setIsTagFormOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Add New Tag</DialogTitle>
+            <DialogDescription>
+              Create a new tag to categorize conversations.
+            </DialogDescription>
+          </DialogHeader>
+          <TagForm 
+            onSuccess={(newTagId) => handleTagCreated(newTagId)} 
           />
         </DialogContent>
       </Dialog>
