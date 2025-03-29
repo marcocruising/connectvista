@@ -19,10 +19,16 @@ import {
   BarChart3,
   PlusCircle,
   Settings,
-  MessageSquare
+  MessageSquare,
+  UserPlus,
+  Building
 } from 'lucide-react';
 
-const AppSidebar = () => {
+interface AppSidebarProps {
+  openAction: (action: 'individual' | 'company' | 'conversation') => void;
+}
+
+const AppSidebar: React.FC<AppSidebarProps> = ({ openAction }) => {
   const location = useLocation();
   
   const menuItems = [
@@ -92,26 +98,35 @@ const AppSidebar = () => {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/individuals/new" className="flex items-center text-crm-blue">
-                    <BuiltInIcon as={PlusCircle} className="w-5 h-5 mr-3" />
-                    <span>Add Individual</span>
-                  </Link>
+                  <button
+                    onClick={() => openAction('individual')}
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Add Individual
+                  </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/companies/new" className="flex items-center text-crm-blue">
-                    <BuiltInIcon as={PlusCircle} className="w-5 h-5 mr-3" />
-                    <span>Add Company</span>
-                  </Link>
+                  <button
+                    onClick={() => openAction('company')}
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950"
+                  >
+                    <Building className="w-4 h-4 mr-2" />
+                    Add Company
+                  </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <Link to="/conversations/new" className="flex items-center text-crm-blue">
-                    <BuiltInIcon as={PlusCircle} className="w-5 h-5 mr-3" />
-                    <span>Add Conversation</span>
-                  </Link>
+                  <button
+                    onClick={() => openAction('conversation')}
+                    className="flex items-center w-full px-3 py-2 text-sm text-blue-600 rounded-md hover:bg-blue-50 dark:hover:bg-blue-950"
+                  >
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Add Conversation
+                  </button>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
