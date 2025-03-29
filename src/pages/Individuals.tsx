@@ -70,16 +70,20 @@ const Individuals = () => {
     }),
     columnHelper.accessor('company_id', {
       header: 'Company',
-      cell: (info) => {
-        const companyId = info.getValue();
-        if (!companyId) return 'N/A';
-        const company = companies.find((c) => c.id === companyId);
+      cell: ({ getValue }) => {
+        const companyId = getValue();
+        if (!companyId) return '-';
+        
+        const company = companies.find(c => c.id === companyId);
         return company ? (
-          <Link to={`/companies/${companyId}`} className="text-crm-blue">
+          <Link 
+            to={`/companies/${company.id}`} 
+            className="text-blue-600 hover:underline"
+          >
             {company.name}
           </Link>
-        ) : 'Unknown';
-      },
+        ) : '-';
+      }
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
