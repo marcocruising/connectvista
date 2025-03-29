@@ -438,15 +438,63 @@ export const useFilteredCompanies = () => {
 };
 
 export const useFilteredConversations = () => {
-  const { conversations, searchQuery, selectedTags } = useCRMStore();
+  const { conversations, companies, individuals, searchQuery, selectedTags } = useCRMStore();
   
   return conversations.filter((conversation) => {
-    // Filter by search query
-    const matchesSearch =
-      searchQuery === '' ||
-      conversation.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.summary.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (conversation.nextSteps?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false);
+    // If no search query and no selected tags, include all conversations
+    if (searchQuery === '' && selectedTags.length === 0) {
+      return true;
+    }
+    
+    // Filter by search query - check all conversation fields
+    let matchesSearch = false;
+    if (searchQuery === '') {
+      matchesSearch = true;
+    } else {
+      const query = searchQuery.toLowerCase();
+      
+      // Check direct conversation fields
+      matchesSearch = (
+        conversation.title.toLowerCase().includes(query) ||
+        conversation.summary.toLowerCase().includes(query) ||
+        (conversation.nextSteps?.toLowerCase().includes(query) ?? false) ||
+        (conversation.notes?.toLowerCase().includes(query) ?? false)
+      );
+      
+      // If no direct match, check associated company
+      if (!matchesSearch && conversation.companyId) {
+        const company = companies.find(c => c.id === conversation.companyId);
+        if (company && company.name.toLowerCase().includes(query)) {
+          matchesSearch = true;
+        }
+      }
+      
+      // If still no match, check associated individuals
+      if (!matchesSearch && conversation.individualIds && conversation.individualIds.length > 0) {
+        const matchingIndividuals = individuals.filter(
+          ind => conversation.individualIds.includes(ind.id) && (
+            ind.first_name.toLowerCase().includes(query) ||
+            ind.last_name.toLowerCase().includes(query) ||
+            `${ind.first_name} ${ind.last_name}`.toLowerCase().includes(query)
+          )
+        );
+        
+        if (matchingIndividuals.length > 0) {
+          matchesSearch = true;
+        }
+      }
+      
+      // If still no match, check tags
+      if (!matchesSearch && conversation.tags) {
+        const hasMatchingTag = conversation.tags.some(tag => 
+          tag.name.toLowerCase().includes(query)
+        );
+        
+        if (hasMatchingTag) {
+          matchesSearch = true;
+        }
+      }
+    }
     
     // Filter by selected tags
     const matchesTags =
