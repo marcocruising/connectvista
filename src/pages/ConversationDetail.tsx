@@ -49,6 +49,8 @@ const ConversationDetail = () => {
   const [loadingReminders, setLoadingReminders] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [isConversationFormOpen, setIsConversationFormOpen] = useState(false);
+  const [selectedReminder, setSelectedReminder] = useState(null);
+  const [isReminderEditDialogOpen, setIsReminderEditDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchConversations();
@@ -312,11 +314,27 @@ const ConversationDetail = () => {
                         </CardDescription>
                       )}
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      <div className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" /> 
-                        {format(new Date(reminder.due_date), 'MMM d, yyyy')}
+                    <div className="flex items-center space-x-2">
+                      <div className="text-sm text-muted-foreground">
+                        <div className="flex items-center">
+                          <Calendar className="h-3 w-3 mr-1" /> 
+                          {format(new Date(reminder.due_date), 'MMM d, yyyy')}
+                        </div>
                       </div>
+                      {reminder.status === 'pending' && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            setSelectedReminder(reminder);
+                            setIsReminderEditDialogOpen(true);
+                          }}
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                          <span className="sr-only">Edit Reminder</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
@@ -452,6 +470,111 @@ const ConversationDetail = () => {
               fetchConversationReminders(); // Refresh reminders
             }}
           />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Reminder Dialog */}
+      <Dialog open={isReminderEditDialogOpen} onOpenChange={setIsReminderEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Reminder</DialogTitle>
+            <DialogDescription>
+              Update reminder details and deadline
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Add a reminder editing form */}
+          {selectedReminder && (
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target as HTMLFormElement);
+              const title = formData.get('title') as string;
+              const description = formData.get('description') as string;
+              const due_date = new Date(formData.get('due_date') as string).toISOString();
+              const priority = formData.get('priority') as string;
+              
+              try {
+                await reminderService.updateReminder(selectedReminder.id, {
+                  title,
+                  description,
+                  due_date,
+                  priority
+                });
+                
+                setIsReminderEditDialogOpen(false);
+                setSelectedReminder(null);
+                fetchConversationReminders();
+              } catch (error) {
+                console.error("Error updating reminder:", error);
+              }
+            }}>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <label htmlFor="title" className="text-sm font-medium">
+                    Title
+                  </label>
+                  <input 
+                    id="title"
+                    name="title"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue={selectedReminder.title}
+                    required
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <label htmlFor="description" className="text-sm font-medium">
+                    Description
+                  </label>
+                  <textarea 
+                    id="description"
+                    name="description"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue={selectedReminder.description || ''}
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <label htmlFor="due_date" className="text-sm font-medium">
+                    Due Date
+                  </label>
+                  <input 
+                    id="due_date"
+                    name="due_date"
+                    type="date"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue={format(new Date(selectedReminder.due_date), 'yyyy-MM-dd')}
+                    required
+                  />
+                </div>
+                
+                <div className="grid gap-2">
+                  <label htmlFor="priority" className="text-sm font-medium">
+                    Priority
+                  </label>
+                  <select 
+                    id="priority"
+                    name="priority"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue={selectedReminder.priority}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                  </select>
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsReminderEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  Save Changes
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>
