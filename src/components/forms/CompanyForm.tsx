@@ -125,14 +125,13 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
     );
   };
 
-  // Available optional fields that can be added
+  // Available optional fields that can be added - removing size and type
   const availableOptionalFields = useMemo(() => {
     const allOptionalFields = [
       { id: 'website', label: 'Website' },
       { id: 'description', label: 'Description' },
       { id: 'industry', label: 'Industry' },
-      { id: 'size', label: 'Company Size' },
-      { id: 'type', label: 'Company Type' },
+      // Removed size and type fields
     ];
     
     // Filter out already visible fields
@@ -250,64 +249,7 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
             </div>
           )}
 
-          {visibleFields.includes('size') && (
-            <div className="relative">
-              <Select
-                value={watch('size') || ''}
-                onValueChange={(value) => setValue('size', value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Company Size" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  <SelectItem value="Small">Small</SelectItem>
-                  <SelectItem value="Medium">Medium</SelectItem>
-                  <SelectItem value="Large">Large</SelectItem>
-                  <SelectItem value="Enterprise">Enterprise</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="sm" 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
-                onClick={() => removeField('size')}
-              >
-                Remove
-              </Button>
-            </div>
-          )}
-
-          {visibleFields.includes('type') && (
-            <div className="relative">
-              <Select
-                value={watch('type') || ''}
-                onValueChange={(value) => setValue('type', value as any)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Company Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">None</SelectItem>
-                  <SelectItem value="Investor">Investor</SelectItem>
-                  <SelectItem value="Customer">Customer</SelectItem>
-                  <SelectItem value="Partner">Partner</SelectItem>
-                  <SelectItem value="Vendor">Vendor</SelectItem>
-                  <SelectItem value="Other">Other</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button 
-                type="button" 
-                variant="ghost" 
-                size="sm" 
-                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
-                onClick={() => removeField('type')}
-              >
-                Remove
-              </Button>
-            </div>
-          )}
+          {/* Removed the size and type field sections */}
         </div>
       )}
 
