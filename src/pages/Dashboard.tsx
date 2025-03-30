@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
-import { BarChart3, Building2, Calendar, MessageCircle, Users } from 'lucide-react';
+import { BarChart3, Building2, Calendar, MessageCircle, Users, Building } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import SearchBar from '@/components/shared/SearchBar';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 const Dashboard = () => {
   const { 
@@ -153,24 +155,71 @@ const Dashboard = () => {
         <CardContent>
           <div className="space-y-4">
             {recentConversations.length > 0 ? (
-              recentConversations.map((conversation) => (
-                <div key={conversation.id} className="border-b pb-4 last:border-0">
-                  <h3 className="font-semibold text-crm-blue">
-                    <Link to={`/conversations/${conversation.id}`}>
-                      {conversation.title}
-                    </Link>
-                  </h3>
-                  <div className="flex items-center text-sm text-gray-500 mt-1">
-                    <Calendar className="h-3 w-3 mr-1" />
-                    {format(new Date(conversation.date), 'PPP')}
+              recentConversations.map((conversation) => {
+                // Get the associated company for this conversation
+                const company = conversation.companyId ? 
+                  companies.find(c => c.id === conversation.companyId) : null;
+                
+                // Get the associated individuals for this conversation
+                const participants = conversation.individualIds
+                  .map(id => individuals.find(individual => individual.id === id))
+                  .filter(Boolean); // Filter out any undefined values
+                
+                return (
+                  <div key={conversation.id} className="border-b pb-4 last:border-0">
+                    <h3 className="font-semibold text-crm-blue">
+                      <Link to={`/conversations/${conversation.id}`}>
+                        {conversation.title}
+                      </Link>
+                    </h3>
+                    
+                    <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                      <div className="flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {format(new Date(conversation.date), 'PPP')}
+                      </div>
+                      
+                      {company && (
+                        <Badge variant="outline" className="flex items-center gap-1 bg-gray-50">
+                          <Building className="h-3 w-3" />
+                          <Link to={`/companies/${company.id}`} className="hover:underline">
+                            {company.name}
+                          </Link>
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    {/* Participants section */}
+                    {participants.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {participants.map((participant) => (
+                          <Link 
+                            key={participant.id} 
+                            to={`/individuals/${participant.id}`}
+                            className="inline-flex items-center"
+                          >
+                            <Badge 
+                              variant="secondary" 
+                              className="px-2 py-0 h-6 bg-blue-50 hover:bg-blue-100 transition-colors text-xs"
+                            >
+                              {participant.first_name} {participant.last_name}
+                            </Badge>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                    
+                    <p className="text-sm mt-2 text-gray-700">{conversation.summary}</p>
+                    
+                    {conversation.nextSteps && conversation.nextSteps.trim() !== '' && (
+                      <div className="text-sm">
+                        <span className="font-medium">Next Steps: </span>
+                        {conversation.nextSteps}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-sm mt-2 text-gray-700">{conversation.summary}</p>
-                  <div className="text-sm mt-2">
-                    <span className="font-medium">Next Steps: </span>
-                    {conversation.nextSteps}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="text-center py-4 text-gray-500">
                 {searchQuery 
