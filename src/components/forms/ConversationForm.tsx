@@ -243,8 +243,8 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      {/* 1. Conversation Title */}
       <div>
-        <Label htmlFor="title">Title</Label>
         <Input
           id="title"
           {...form.register('title')}
@@ -255,8 +255,8 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         )}
       </div>
 
+      {/* 2. Date - Moved up below title */}
       <div>
-        <Label htmlFor="date">Date</Label>
         <Popover>
           <PopoverTrigger asChild>
             <Button
@@ -284,8 +284,44 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         )}
       </div>
 
+      {/* 3. Tags */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap gap-2 min-h-[40px]">
+          {tags.map((tag) => (
+            <Button
+              key={tag.id}
+              type="button"
+              variant={selectedTagIds.includes(tag.id) ? "default" : "outline"}
+              size="sm"
+              onClick={() => handleTagSelection(tag.id)}
+              style={{
+                backgroundColor: selectedTagIds.includes(tag.id) ? tag.color : 'transparent',
+                borderColor: tag.color,
+                color: selectedTagIds.includes(tag.id) ? 'white' : tag.color,
+              }}
+            >
+              {tag.name}
+            </Button>
+          ))}
+          {tags.length === 0 && (
+            <p className="text-gray-400 text-sm">No tags available</p>
+          )}
+          
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsTagFormOpen(true)}
+            className="flex items-center text-blue-600 hover:text-blue-800"
+          >
+            <PlusCircle className="h-4 w-4 mr-1" />
+            Create New Tag
+          </Button>
+        </div>
+      </div>
+
+      {/* 4. Company */}
       <div>
-        <Label htmlFor="company">Company</Label>
         <div className="flex space-x-2 items-center">
           <div className="flex-grow">
             <Select
@@ -296,7 +332,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
                 <SelectValue placeholder="Select a company" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="none">Select company</SelectItem>
                 {companies.map((company) => (
                   <SelectItem key={company.id} value={company.id}>
                     {company.name}
@@ -306,7 +342,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             </Select>
           </div>
           
-          {/* Updated Company Button with text */}
           <Button
             type="button"
             variant="ghost"
@@ -320,14 +355,10 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </div>
       </div>
 
+      {/* 5. Participants */}
       <div className="space-y-2">
-        <Label>Participants</Label>
-        
-        {/* Combined participant search and selection area */}
-        <div className="border p-2 rounded">
-          {/* Top row with search input and add button side by side */}
-          <div className="flex space-x-2 mb-3">
-            {/* Search input takes most of the space */}
+        <div className="mb-3">
+          <div className="flex space-x-2">
             <div className="relative flex-grow">
               <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                 <Search className="h-4 w-4 text-gray-400" />
@@ -341,7 +372,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
                 onFocus={() => setShowParticipantResults(true)}
               />
               
-              {/* Search results dropdown */}
               {showParticipantResults && (
                 <div 
                   ref={searchResultsRef}
@@ -379,7 +409,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
                       <p className="text-gray-500 text-sm p-2">No matching individuals found</p>
                     )}
                     
-                    {/* Create individual option at the bottom */}
                     <div 
                       className="p-2 mt-1 cursor-pointer rounded-md hover:bg-gray-100 text-blue-600 flex items-center border-t border-gray-100"
                       onClick={() => {
@@ -395,7 +424,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
               )}
             </div>
             
-            {/* Update the participant section button to have blue text */}
             <Button
               type="button"
               variant="ghost"
@@ -408,8 +436,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             </Button>
           </div>
           
-          {/* Selected participants shown below */}
-          <div className="flex flex-wrap gap-2 min-h-[40px]">
+          <div className="flex flex-wrap gap-2 min-h-[40px] mt-3">
             {selectedIndividuals.length > 0 ? (
               selectedIndividuals.map(individual => (
                 <div 
@@ -433,51 +460,13 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Tags</Label>
-        <div className="flex flex-wrap gap-2 min-h-[40px]">
-          {tags.map((tag) => (
-            <Button
-              key={tag.id}
-              type="button"
-              variant={selectedTagIds.includes(tag.id) ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTagSelection(tag.id)}
-              style={{
-                backgroundColor: selectedTagIds.includes(tag.id) ? tag.color : 'transparent',
-                borderColor: tag.color,
-                color: selectedTagIds.includes(tag.id) ? 'white' : tag.color,
-              }}
-            >
-              {tag.name}
-            </Button>
-          ))}
-          {tags.length === 0 && (
-            <p className="text-gray-400 text-sm">No tags available</p>
-          )}
-          
-          {/* Add Tag Button - moved outside the selection area */}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsTagFormOpen(true)}
-            className="flex items-center text-blue-600 hover:text-blue-800"
-          >
-            <PlusCircle className="h-4 w-4 mr-1" />
-            Create New Tag
-          </Button>
-        </div>
-      </div>
-
-      {/* Optional fields section */}
+      {/* Optional fields section - unchanged */}
       {visibleFields.length > 0 && (
         <div className="border-t pt-4 mt-4 space-y-3">
           <h4 className="text-sm font-medium text-muted-foreground">Optional Information</h4>
           
           {visibleFields.includes('summary') && (
             <div className="relative">
-              <Label htmlFor="summary">Summary</Label>
               <Textarea
                 id="summary"
                 {...form.register('summary')}
@@ -491,7 +480,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
                 type="button" 
                 variant="ghost" 
                 size="sm" 
-                className="absolute right-2 top-6 h-6 text-gray-500 hover:text-gray-800"
+                className="absolute right-2 top-2 h-6 text-gray-500 hover:text-gray-800"
                 onClick={() => removeField('summary')}
               >
                 Remove
@@ -501,7 +490,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
           {visibleFields.includes('nextSteps') && (
             <div className="relative">
-              <Label htmlFor="nextSteps">Next Steps</Label>
               <Textarea
                 id="nextSteps"
                 {...form.register('nextSteps')}
@@ -512,7 +500,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
                 type="button" 
                 variant="ghost" 
                 size="sm" 
-                className="absolute right-2 top-6 h-6 text-gray-500 hover:text-gray-800"
+                className="absolute right-2 top-2 h-6 text-gray-500 hover:text-gray-800"
                 onClick={() => removeField('nextSteps')}
               >
                 Remove
@@ -522,7 +510,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </div>
       )}
 
-      {/* Add optional field dropdown */}
+      {/* Add optional field dropdown - unchanged */}
       <div className={`${visibleFields.length > 0 ? 'mt-2' : 'pt-2 mt-4 border-t'}`}>
         <Popover>
           <PopoverTrigger asChild>
@@ -561,7 +549,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         {initialData?.id ? 'Update Conversation' : 'Add Conversation'}
       </Button>
       
-      {/* Individual Creation Dialog */}
+      {/* Dialogs - unchanged */}
       <Dialog open={isIndividualFormOpen} onOpenChange={setIsIndividualFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -577,7 +565,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Company Creation Dialog */}
       <Dialog open={isCompanyFormOpen} onOpenChange={setIsCompanyFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -592,7 +579,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Tag Creation Dialog */}
       <Dialog open={isTagFormOpen} onOpenChange={setIsTagFormOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
