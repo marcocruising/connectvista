@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,6 +16,16 @@ import {
 } from '@/components/ui/form';
 import { companyService } from '@/services/companyService';
 import TagBadge from '@/components/shared/TagBadge';
+import { Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const companySchema = z.object({
   name: z.string().min(1, 'Company name is required'),
@@ -34,10 +44,10 @@ const companySchema = z.object({
 
 type CompanyFormData = z.infer<typeof companySchema>;
 
-type CompanyFormProps = {
-  initialData?: any;
-  onSuccess?: () => void;
-};
+interface CompanyFormProps {
+  initialData?: CompanyFormData & { id?: string; tags?: any[] };
+  onSuccess?: (newCompanyId: string) => void;
+}
 
 export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
   const { 
@@ -51,24 +61,21 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>(
     initialData?.tags?.map(tag => tag.id) || []
   );
-  
-  const companyTypes = [
-    { value: 'Investor', label: 'Investor' },
-    { value: 'Customer', label: 'Customer' },
-    { value: 'Partner', label: 'Partner' },
-    { value: 'Vendor', label: 'Vendor' },
-    { value: 'Other', label: 'Other' },
-  ];
 
-  const companySizes = [
-    { value: 'Small', label: 'Small' },
-    { value: 'Medium', label: 'Medium' },
-    { value: 'Large', label: 'Large' },
-    { value: 'Enterprise', label: 'Enterprise' },
-  ];
+  // Track which optional fields are visible
+  const [visibleFields, setVisibleFields] = useState<string[]>(
+    initialData ? 
+      // Show fields that already have data
+      [
+        ...(initialData.website ? ['website'] : []),
+        ...(initialData.description ? ['description'] : []),
+        ...(initialData.industry ? ['industry'] : []),
+        ...(initialData.size ? ['size'] : []),
+        ...(initialData.type ? ['type'] : [])
+      ] : []
+  );
 
-  // Initialize the form with react-hook-form
-  const form = useForm<CompanyFormData>({
+  const { register, handleSubmit, setValue, formState: { errors }, watch } = useForm<CompanyFormData>({
     resolver: zodResolver(companySchema),
     defaultValues: {
       name: initialData?.name || '',
@@ -86,38 +93,25 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
 
   const onSubmit = async (data: CompanyFormData) => {
     try {
-      console.log('Form data:', data);
-      console.log('Selected tags:', selectedTagIds);
-      
-      // Process the data to handle empty strings properly
-      const basicData = {
-        ...data,
-        // Convert empty strings to null
-        size: data.size === '' ? null : data.size,
-        type: data.type === '' ? null : data.type
-      };
+      let companyId: string;
       
       if (initialData?.id) {
-        await updateCompany(initialData.id, basicData);
-        // After successful update, handle tags separately
-        await companyService.updateCompanyTags(initialData.id, selectedTagIds);
-        // Update the store with the tags
-        await updateCompanyWithTags(initialData.id, selectedTagIds);
+        const updatedCompany = await updateCompany(initialData.id, data);
+        companyId = updatedCompany.id;
+        // Update company tags
+        await companyService.updateCompanyTags(companyId, selectedTagIds);
+        // Update the store
+        await updateCompanyWithTags(companyId, selectedTagIds);
       } else {
-        // For new companies, we need to ensure name is provided
-        if (!basicData.name) {
-          throw new Error('Company name is required');
-        }
-        
-        const newCompany = await addCompany(basicData);
-        // After successful creation, handle tags separately
-        if (newCompany?.id) {
-          await companyService.updateCompanyTags(newCompany.id, selectedTagIds);
-          // Update the store with the tags
-          await updateCompanyWithTags(newCompany.id, selectedTagIds);
-        }
+        const newCompany = await addCompany(data);
+        companyId = newCompany.id;
+        // Add company tags
+        await companyService.updateCompanyTags(companyId, selectedTagIds);
+        // Update the store
+        await updateCompanyWithTags(companyId, selectedTagIds);
       }
-      onSuccess?.();
+      
+      onSuccess?.(companyId);
     } catch (error) {
       console.error('Failed to save company:', error);
     }
@@ -131,128 +125,50 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
     );
   };
 
+  // Available optional fields that can be added
+  const availableOptionalFields = useMemo(() => {
+    const allOptionalFields = [
+      { id: 'website', label: 'Website' },
+      { id: 'description', label: 'Description' },
+      { id: 'industry', label: 'Industry' },
+      { id: 'size', label: 'Company Size' },
+      { id: 'type', label: 'Company Type' },
+    ];
+    
+    // Filter out already visible fields
+    return allOptionalFields.filter(field => !visibleFields.includes(field.id));
+  }, [visibleFields]);
+
+  // Add an optional field
+  const addField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => [...prev, fieldId]);
+  }, []);
+
+  // Remove an optional field
+  const removeField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => prev.filter(id => id !== fieldId));
+    // Clear the field value
+    setValue(fieldId as any, '');
+  }, [setValue]);
+
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {/* Required Fields Section */}
+      <div className="space-y-4">
         <div>
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Company Name</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Company Name" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+          <Input
+            {...register('name')}
+            placeholder="Company Name"
           />
+          {errors.name && (
+            <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+          )}
         </div>
 
-        <div>
-          <FormField
-            control={form.control}
-            name="website"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Website</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Website" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div>
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea {...field} placeholder="Description" rows={4} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div>
-          <FormField
-            control={form.control}
-            name="industry"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Industry</FormLabel>
-                <FormControl>
-                  <Input {...field} placeholder="Industry" />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div>
-          <FormField
-            control={form.control}
-            name="size"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Size</FormLabel>
-                <select
-                  className="w-full p-2 border rounded"
-                  {...field}
-                  onChange={e => field.onChange(e.target.value)}
-                >
-                  <option value="">Select Size</option>
-                  {companySizes.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        <div>
-          <FormField
-            control={form.control}
-            name="type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Type</FormLabel>
-                <select
-                  className="w-full p-2 border rounded"
-                  {...field}
-                  onChange={e => field.onChange(e.target.value)}
-                >
-                  <option value="">Select Type</option>
-                  {companyTypes.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </div>
-
-        {/* Tag selection section */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Tags</label>
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag) => (
+        {/* Tags section - without border and label */}
+        <div className="flex flex-wrap gap-2 min-h-[40px]">
+          {tags.length > 0 ? (
+            tags.map((tag) => (
               <Button
                 key={tag.id}
                 type="button"
@@ -267,14 +183,172 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
               >
                 {tag.name}
               </Button>
-            ))}
-          </div>
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">No tags available</p>
+          )}
         </div>
+      </div>
 
-        <Button type="submit" className="w-full">
-          {initialData ? 'Update Company' : 'Create Company'}
-        </Button>
-      </form>
-    </Form>
+      {/* Optional fields section */}
+      {visibleFields.length > 0 && (
+        <div className="border-t pt-4 mt-4 space-y-3">
+          <h4 className="text-sm font-medium text-muted-foreground">Optional Information</h4>
+          
+          {visibleFields.includes('website') && (
+            <div className="relative">
+              <Input
+                {...register('website')}
+                placeholder="Website"
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('website')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('description') && (
+            <div className="relative">
+              <Textarea
+                {...register('description')}
+                placeholder="Description"
+                rows={4}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-3 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('description')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('industry') && (
+            <div className="relative">
+              <Input
+                {...register('industry')}
+                placeholder="Industry"
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('industry')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('size') && (
+            <div className="relative">
+              <Select
+                value={watch('size') || ''}
+                onValueChange={(value) => setValue('size', value as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Company Size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="Small">Small</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="Large">Large</SelectItem>
+                  <SelectItem value="Enterprise">Enterprise</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('size')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('type') && (
+            <div className="relative">
+              <Select
+                value={watch('type') || ''}
+                onValueChange={(value) => setValue('type', value as any)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Company Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="Investor">Investor</SelectItem>
+                  <SelectItem value="Customer">Customer</SelectItem>
+                  <SelectItem value="Partner">Partner</SelectItem>
+                  <SelectItem value="Vendor">Vendor</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('type')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add optional field dropdown */}
+      <div className={`${visibleFields.length > 0 ? 'mt-2' : 'pt-2 mt-4 border-t'}`}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              type="button" 
+              className="flex items-center text-muted-foreground"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add field
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2">
+            <div className="grid gap-1">
+              {availableOptionalFields.map(field => (
+                <Button 
+                  key={field.id} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="justify-start font-normal" 
+                  onClick={() => addField(field.id)}
+                >
+                  {field.label}
+                </Button>
+              ))}
+              {availableOptionalFields.length === 0 && (
+                <p className="text-muted-foreground text-sm px-2 py-1">All optional fields added</p>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      <Button type="submit" className="w-full mt-6">
+        {initialData?.id ? 'Save Changes' : 'Add Company'}
+      </Button>
+    </form>
   );
 }; 
