@@ -9,14 +9,38 @@ import { Bell, Calendar, AlertTriangle, Check, X, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export const RemindersPanel: React.FC = () => {
-  const { reminders, fetchReminders, markReminderComplete, dismissReminder, isLoadingReminders } = useCRMStore();
+  const { 
+    reminders, 
+    conversations,
+    individuals,
+    companies,
+    fetchReminders, 
+    fetchConversations,
+    fetchIndividuals,
+    fetchCompanies,
+    markReminderComplete, 
+    dismissReminder, 
+    isLoadingReminders 
+  } = useCRMStore();
   const [activeTab, setActiveTab] = useState('upcoming');
 
   useEffect(() => {
-    fetchReminders();
-  }, [fetchReminders]);
+    // Make sure we have all the data we need
+    const loadData = async () => {
+      await Promise.all([
+        fetchReminders(),
+        fetchConversations(),
+        fetchIndividuals(),
+        fetchCompanies()
+      ]);
+    };
+    
+    loadData();
+  }, [fetchReminders, fetchConversations, fetchIndividuals, fetchCompanies]);
 
   const handleMarkComplete = async (id: string) => {
     await markReminderComplete(id);
@@ -68,68 +92,130 @@ export const RemindersPanel: React.FC = () => {
   };
 
   // Render reminder card
-  const renderReminderCard = (reminder: Reminder) => (
-    <Card key={reminder.id} className={`
-      mb-3 
-      ${reminder.priority === 'high' ? 'border-red-200' : ''} 
-      ${isPast(new Date(reminder.due_date)) && reminder.status === 'pending' ? 'bg-red-50' : ''}
-      ${isToday(new Date(reminder.due_date)) && reminder.status === 'pending' ? 'bg-yellow-50' : ''}
-      ${reminder.status === 'completed' ? 'bg-green-50' : ''}
-      ${reminder.status === 'dismissed' ? 'bg-gray-50' : ''}
-    `}>
-      <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-base">
-            {reminder.title}
-            {renderPriorityBadge(reminder.priority)}
-          </CardTitle>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Calendar className="h-3 w-3 mr-1" /> 
-            {format(new Date(reminder.due_date), 'MMM d, yyyy')}
+  const renderReminderCard = (reminder: Reminder) => {
+    // Find the conversation related to this reminder
+    const conversation = conversations.find(c => c.id === reminder.conversation_id);
+    
+    // Get related individuals and company
+    const relatedIndividuals = conversation
+      ? individuals.filter(i => conversation.individualIds?.includes(i.id))
+      : [];
+      
+    const relatedCompany = conversation?.companyId
+      ? companies.find(c => c.id === conversation.companyId)
+      : null;
+    
+    return (
+      <Card key={reminder.id} className={`
+        mb-3 
+        ${reminder.priority === 'high' ? 'border-red-200' : ''} 
+        ${isPast(new Date(reminder.due_date)) && reminder.status === 'pending' ? 'bg-red-50' : ''}
+        ${isToday(new Date(reminder.due_date)) && reminder.status === 'pending' ? 'bg-yellow-50' : ''}
+        ${reminder.status === 'completed' ? 'bg-green-50' : ''}
+        ${reminder.status === 'dismissed' ? 'bg-gray-50' : ''}
+      `}>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div className="flex-1">
+              <CardTitle className="text-base">
+                {reminder.title}
+                {renderPriorityBadge(reminder.priority)}
+              </CardTitle>
+              <CardDescription>
+                {reminder.conversation_id && (
+                  <Link 
+                    to={`/conversations/${reminder.conversation_id}`}
+                    className="text-blue-600 hover:underline text-sm"
+                  >
+                    View conversation
+                  </Link>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Calendar className="h-3 w-3 mr-1" /> 
+              {format(new Date(reminder.due_date), 'MMM d, yyyy')}
+            </div>
           </div>
-        </div>
-        <CardDescription>
-          {reminder.conversation_id && (
-            <Link 
-              to={`/conversations/${reminder.conversation_id}`}
-              className="text-blue-600 hover:underline text-sm"
+        </CardHeader>
+        
+        {/* Participants section */}
+        {(relatedIndividuals.length > 0 || relatedCompany) && (
+          <CardContent className="py-1 pb-3">
+            <div className="flex flex-wrap items-center">
+              <span className="text-xs text-gray-500 mr-2">Participants:</span>
+              <div className="flex -space-x-2 overflow-hidden">
+                <TooltipProvider>
+                  {relatedIndividuals.map((individual, index) => (
+                    <Tooltip key={individual.id}>
+                      <TooltipTrigger asChild>
+                        <Link to={`/individuals/${individual.id}`}>
+                          <Avatar className="h-6 w-6 border border-white">
+                            <AvatarFallback className="text-xs bg-blue-200">
+                              {individual.first_name?.[0]}{individual.last_name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{individual.first_name} {individual.last_name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ))}
+                  
+                  {relatedCompany && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link to={`/companies/${relatedCompany.id}`}>
+                          <Avatar className="h-6 w-6 border border-white">
+                            <AvatarFallback className="text-xs bg-purple-200">
+                              {relatedCompany.name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{relatedCompany.name}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </TooltipProvider>
+              </div>
+            </div>
+          </CardContent>
+        )}
+        
+        {reminder.description && (
+          <CardContent className="py-1">
+            <p className="text-sm text-gray-600">{reminder.description}</p>
+          </CardContent>
+        )}
+        
+        {reminder.status === 'pending' && (
+          <CardFooter className="pt-1 pb-2 flex justify-end gap-2">
+            <Button 
+              size="sm" 
+              variant="ghost" 
+              onClick={() => handleDismiss(reminder.id)}
+              className="h-8 px-2 text-gray-500"
             >
-              View conversation
-            </Link>
-          )}
-        </CardDescription>
-      </CardHeader>
-      
-      {reminder.description && (
-        <CardContent className="py-1">
-          <p className="text-sm text-gray-600">{reminder.description}</p>
-        </CardContent>
-      )}
-      
-      {reminder.status === 'pending' && (
-        <CardFooter className="pt-1 pb-2 flex justify-end gap-2">
-          <Button 
-            size="sm" 
-            variant="ghost" 
-            onClick={() => handleDismiss(reminder.id)}
-            className="h-8 px-2 text-gray-500"
-          >
-            <X className="h-4 w-4 mr-1" />
-            Dismiss
-          </Button>
-          <Button 
-            size="sm" 
-            variant="default" 
-            onClick={() => handleMarkComplete(reminder.id)}
-            className="h-8 px-2"
-          >
-            <Check className="h-4 w-4 mr-1" />
-            Complete
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
-  );
+              <X className="h-4 w-4 mr-1" />
+              Dismiss
+            </Button>
+            <Button 
+              size="sm" 
+              variant="default" 
+              onClick={() => handleMarkComplete(reminder.id)}
+              className="h-8 px-2"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Complete
+            </Button>
+          </CardFooter>
+        )}
+      </Card>
+    );
+  };
 
   return (
     <div className="w-full">
