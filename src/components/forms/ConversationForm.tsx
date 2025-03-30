@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -10,7 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCRMStore } from '@/store/crmStore';
 import { format } from 'date-fns';
-import { CalendarIcon, PlusCircle, Search } from 'lucide-react';
+import { CalendarIcon, PlusCircle, Search, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DatePicker } from '@/components/ui/date-picker';
@@ -88,6 +88,39 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
       nextSteps: initialData?.nextSteps || '',
     },
   });
+
+  // Track which optional fields are visible
+  const [visibleFields, setVisibleFields] = useState<string[]>(
+    initialData ? 
+      // Show fields that already have data
+      [
+        ...(initialData.summary ? ['summary'] : []),
+        ...(initialData.nextSteps ? ['nextSteps'] : [])
+      ] : []
+  );
+
+  // Available optional fields that can be added
+  const availableOptionalFields = useMemo(() => {
+    const allOptionalFields = [
+      { id: 'summary', label: 'Summary' },
+      { id: 'nextSteps', label: 'Next Steps' },
+    ];
+    
+    // Filter out already visible fields
+    return allOptionalFields.filter(field => !visibleFields.includes(field.id));
+  }, [visibleFields]);
+
+  // Add an optional field
+  const addField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => [...prev, fieldId]);
+  }, []);
+
+  // Remove an optional field
+  const removeField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => prev.filter(id => id !== fieldId));
+    // Clear the field value
+    form.setValue(fieldId as any, '');
+  }, [form]);
 
   // Fetch necessary data
   useEffect(() => {
@@ -402,7 +435,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
 
       <div className="space-y-2">
         <Label>Tags</Label>
-        <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
+        <div className="flex flex-wrap gap-2 min-h-[40px]">
           {tags.map((tag) => (
             <Button
               key={tag.id}
@@ -423,7 +456,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
             <p className="text-gray-400 text-sm">No tags available</p>
           )}
           
-          {/* Add Tag Button - moved inside the selection area */}
+          {/* Add Tag Button - moved outside the selection area */}
           <Button
             type="button"
             variant="ghost"
@@ -437,30 +470,94 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="summary">Summary</Label>
-        <Textarea
-          id="summary"
-          {...form.register('summary')}
-          placeholder="Enter conversation summary (optional)"
-          rows={4}
-        />
-        {form.formState.errors.summary && (
-          <p className="text-red-500 text-sm mt-1">{form.formState.errors.summary.message}</p>
-        )}
+      {/* Optional fields section */}
+      {visibleFields.length > 0 && (
+        <div className="border-t pt-4 mt-4 space-y-3">
+          <h4 className="text-sm font-medium text-muted-foreground">Optional Information</h4>
+          
+          {visibleFields.includes('summary') && (
+            <div className="relative">
+              <Label htmlFor="summary">Summary</Label>
+              <Textarea
+                id="summary"
+                {...form.register('summary')}
+                placeholder="Enter conversation summary"
+                rows={4}
+              />
+              {form.formState.errors.summary && (
+                <p className="text-red-500 text-sm mt-1">{form.formState.errors.summary.message}</p>
+              )}
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-6 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('summary')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('nextSteps') && (
+            <div className="relative">
+              <Label htmlFor="nextSteps">Next Steps</Label>
+              <Textarea
+                id="nextSteps"
+                {...form.register('nextSteps')}
+                placeholder="Enter next steps or action items"
+                rows={2}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-6 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('nextSteps')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add optional field dropdown */}
+      <div className={`${visibleFields.length > 0 ? 'mt-2' : 'pt-2 mt-4 border-t'}`}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              type="button" 
+              className="flex items-center text-muted-foreground"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add field
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2">
+            <div className="grid gap-1">
+              {availableOptionalFields.map(field => (
+                <Button 
+                  key={field.id} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="justify-start font-normal" 
+                  onClick={() => addField(field.id)}
+                >
+                  {field.label}
+                </Button>
+              ))}
+              {availableOptionalFields.length === 0 && (
+                <p className="text-muted-foreground text-sm px-2 py-1">All optional fields added</p>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div>
-        <Label htmlFor="nextSteps">Next Steps</Label>
-        <Textarea
-          id="nextSteps"
-          {...form.register('nextSteps')}
-          placeholder="Enter next steps or action items"
-          rows={2}
-        />
-      </div>
-
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full mt-6">
         {initialData?.id ? 'Update Conversation' : 'Add Conversation'}
       </Button>
       
