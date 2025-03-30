@@ -18,6 +18,7 @@ import IndividualDetail from './pages/IndividualDetail';
 import ConversationDetail from './pages/ConversationDetail';
 import Debug from "./pages/Debug";
 import Settings from "./pages/Settings";
+import Reminders from '@/pages/Reminders';
 
 const queryClient = new QueryClient();
 
@@ -36,7 +37,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const App = () => {
-  const { fetchConversations, fetchIndividuals, fetchCompanies, fetchTags } = useCRMStore();
+  const { fetchConversations, fetchIndividuals, fetchCompanies, fetchTags, fetchReminders } = useCRMStore();
 
   useEffect(() => {
     const initializeApp = async () => {
@@ -44,7 +45,8 @@ const App = () => {
         fetchConversations(),
         fetchIndividuals(),
         fetchCompanies(),
-        fetchTags()
+        fetchTags(),
+        fetchReminders()
       ]);
     };
     
@@ -76,6 +78,7 @@ const App = () => {
               <Route path="/individuals/:id" element={<IndividualDetail />} />
               <Route path="/conversations/:id" element={<ConversationDetail />} />
               <Route path="/debug" element={<Debug />} />
+              <Route path="/reminders" element={<Reminders />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

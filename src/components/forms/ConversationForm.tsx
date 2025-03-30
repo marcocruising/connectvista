@@ -28,6 +28,12 @@ const conversationSchema = z.object({
   }),
   summary: z.string().optional(),
   nextSteps: z.string().optional(),
+  reminder: z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    due_date: z.date().optional(),
+    priority: z.enum(['low', 'medium', 'high']).default('medium').optional(),
+  }).optional(),
 });
 
 type ConversationFormData = z.infer<typeof conversationSchema>;
@@ -86,6 +92,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
       date: initialData?.date ? new Date(initialData.date) : new Date(),
       summary: initialData?.summary || '',
       nextSteps: initialData?.nextSteps || '',
+      reminder: undefined,
     },
   });
 
@@ -95,7 +102,8 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
       // Show fields that already have data
       [
         ...(initialData.summary ? ['summary'] : []),
-        ...(initialData.nextSteps ? ['nextSteps'] : [])
+        ...(initialData.nextSteps ? ['nextSteps'] : []),
+        ...(initialData.reminder ? ['reminder'] : []),
       ] : []
   );
 
@@ -104,6 +112,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
     const allOptionalFields = [
       { id: 'summary', label: 'Summary' },
       { id: 'nextSteps', label: 'Next Steps' },
+      { id: 'reminder', label: 'Reminder' },
     ];
     
     // Filter out already visible fields
@@ -216,23 +225,46 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
   // Handle form submission
   const onSubmit = async (data: ConversationFormData) => {
     try {
-      const conversationData = {
-        ...data,
+      // Extract reminder data from form submission
+      const { reminder, ...conversationData } = data;
+      
+      const formattedConversationData = {
+        ...conversationData,
         // Set default title if none provided
-        title: data.title || "Conversation",
-        date: data.date.toISOString(),
+        title: conversationData.title || "Conversation",
+        date: conversationData.date.toISOString(),
         companyId: selectedCompanyId,
         // Use empty string instead of null for summary if not provided
-        summary: data.summary || "",
-        nextSteps: data.nextSteps || null,
+        summary: conversationData.summary || "",
+        nextSteps: conversationData.nextSteps || null,
         tags: selectedTagIds,
         individualIds: selectedIndividualIds
       };
 
+      let conversationId;
       if (initialData?.id) {
-        await updateConversation(initialData.id, conversationData);
+        await updateConversation(initialData.id, formattedConversationData);
+        conversationId = initialData.id;
       } else {
-        await addConversation(conversationData);
+        const newConversation = await addConversation(formattedConversationData);
+        conversationId = newConversation.id;
+      }
+      
+      // Create a reminder if one was set
+      if (reminder && reminder.due_date && conversationId) {
+        try {
+          await useCRMStore.getState().createReminder({
+            conversation_id: conversationId,
+            title: reminder.title || formattedConversationData.title,
+            description: reminder.description || '',
+            due_date: reminder.due_date.toISOString(),
+            status: 'pending',
+            priority: reminder.priority || 'medium'
+          });
+        } catch (reminderError) {
+          console.error("Failed to create reminder:", reminderError);
+          // Don't fail the whole submission if reminder creation fails
+        }
       }
       
       onSuccess?.();
@@ -505,6 +537,89 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
               >
                 Remove
               </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('reminder') && (
+            <div className="relative space-y-3 border p-4 rounded-md">
+              <div className="flex justify-between items-center">
+                <h4 className="text-sm font-medium">Set a Reminder</h4>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 text-gray-500 hover:text-gray-800"
+                  onClick={() => removeField('reminder')}
+                >
+                  Remove
+                </Button>
+              </div>
+              
+              <div className="grid gap-3">
+                <div className="grid gap-2">
+                  <Label htmlFor="reminder-title">Title</Label>
+                  <Input
+                    id="reminder-title"
+                    placeholder="Reminder title"
+                    {...form.register('reminder.title')}
+                  />
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="reminder-date">Due Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={`w-full justify-start text-left font-normal ${
+                          !form.watch('reminder.due_date') && "text-muted-foreground"
+                        }`}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {form.watch('reminder.due_date') ? (
+                          format(form.watch('reminder.due_date'), 'PPP')
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={form.watch('reminder.due_date')}
+                        onSelect={(date) => form.setValue('reminder.due_date', date)}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="reminder-priority">Priority</Label>
+                  <Select
+                    onValueChange={(value) => form.setValue('reminder.priority', value as 'low' | 'medium' | 'high')}
+                    defaultValue={form.watch('reminder.priority') || 'medium'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select priority" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">Low</SelectItem>
+                      <SelectItem value="medium">Medium</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="reminder-description">Notes</Label>
+                  <Textarea
+                    id="reminder-description"
+                    placeholder="Additional details about this reminder"
+                    {...form.register('reminder.description')}
+                  />
+                </div>
+              </div>
             </div>
           )}
         </div>

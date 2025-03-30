@@ -1,10 +1,11 @@
 import { create } from 'zustand';
-import { Tag, Company, Individual, Conversation } from '@/types/crm';
+import { Tag, Company, Individual, Conversation, Reminder } from '@/types/crm';
 import { tagService } from '@/services/tagService';
 import { companyService } from '@/services/companyService';
 import { individualService } from '@/services/individualService';
 import { conversationService } from '@/services/conversationService';
 import { authService } from '@/services/authService';
+import { reminderService } from '@/services/reminderService';
 
 interface CRMState {
   // Data
@@ -12,12 +13,14 @@ interface CRMState {
   individuals: Individual[];
   conversations: Conversation[];
   tags: Tag[];
+  reminders: Reminder[];
   
   // UI state
   searchQuery: string;
   selectedTags: string[];
   isLoading: boolean;
   error: string | null;
+  isLoadingReminders: boolean;
   
   // Auth state
   user: any | null;
@@ -33,6 +36,7 @@ interface CRMState {
   fetchCompanies: () => Promise<void>;
   fetchIndividuals: () => Promise<void>;
   fetchConversations: () => Promise<void>;
+  fetchReminders: () => Promise<void>;
   
   // CRUD operations
   addTag: (tag: Omit<Tag, 'id' | 'created_at' | 'created_by'>) => Promise<void>;
@@ -59,6 +63,13 @@ interface CRMState {
   // New functions
   updateIndividualWithTags: (individualId: string, tagIds: string[]) => Promise<void>;
   updateCompanyWithTags: (id: string, tagIds: string[]) => Promise<void>;
+  
+  // Reminder actions
+  createReminder: (reminderData: Omit<Reminder, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateReminder: (id: string, reminderData: Partial<Reminder>) => Promise<void>;
+  deleteReminder: (id: string) => Promise<void>;
+  markReminderComplete: (id: string) => Promise<void>;
+  dismissReminder: (id: string) => Promise<void>;
 }
 
 export const useCRMStore = create<CRMState>((set, get) => ({
@@ -67,10 +78,12 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   individuals: [],
   conversations: [],
   tags: [],
+  reminders: [],
   searchQuery: '',
   selectedTags: [],
   isLoading: false,
   error: null,
+  isLoadingReminders: false,
 
   // Auth state
   user: null,
@@ -121,6 +134,18 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     } catch (error) {
       console.error("Error fetching conversations in store:", error);
       set({ error: (error as Error).message, isLoading: false });
+    }
+  },
+
+  fetchReminders: async () => {
+    set({ isLoadingReminders: true });
+    try {
+      const reminders = await reminderService.getReminders();
+      set({ reminders });
+    } catch (error) {
+      console.error("Error fetching reminders:", error);
+    } finally {
+      set({ isLoadingReminders: false });
     }
   },
 
@@ -392,6 +417,68 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
       throw error;
+    }
+  },
+
+  // Reminder actions
+  createReminder: async (reminderData) => {
+    try {
+      const newReminder = await reminderService.createReminder(reminderData);
+      set((state) => ({
+        reminders: [...state.reminders, newReminder]
+      }));
+    } catch (error) {
+      console.error("Error creating reminder:", error);
+    }
+  },
+
+  updateReminder: async (id, reminderData) => {
+    try {
+      const updatedReminder = await reminderService.updateReminder(id, reminderData);
+      set((state) => ({
+        reminders: state.reminders.map(reminder => 
+          reminder.id === id ? updatedReminder : reminder
+        )
+      }));
+    } catch (error) {
+      console.error("Error updating reminder:", error);
+    }
+  },
+
+  deleteReminder: async (id) => {
+    try {
+      await reminderService.deleteReminder(id);
+      set((state) => ({
+        reminders: state.reminders.filter(reminder => reminder.id !== id)
+      }));
+    } catch (error) {
+      console.error("Error deleting reminder:", error);
+    }
+  },
+
+  markReminderComplete: async (id) => {
+    try {
+      const updatedReminder = await reminderService.markReminderAsComplete(id);
+      set((state) => ({
+        reminders: state.reminders.map(reminder => 
+          reminder.id === id ? updatedReminder : reminder
+        )
+      }));
+    } catch (error) {
+      console.error("Error marking reminder as complete:", error);
+    }
+  },
+
+  dismissReminder: async (id) => {
+    try {
+      const updatedReminder = await reminderService.dismissReminder(id);
+      set((state) => ({
+        reminders: state.reminders.map(reminder => 
+          reminder.id === id ? updatedReminder : reminder
+        )
+      }));
+    } catch (error) {
+      console.error("Error dismissing reminder:", error);
     }
   },
 }));
