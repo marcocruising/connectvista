@@ -21,7 +21,8 @@ import {
   Settings,
   MessageSquare,
   UserPlus,
-  Building
+  Building,
+  Bell
 } from 'lucide-react';
 
 interface AppSidebarProps {
@@ -51,6 +52,11 @@ const AppSidebar: React.FC<AppSidebarProps> = ({ openAction }) => {
       title: 'Conversations',
       path: '/conversations',
       icon: MessageSquare,
+    },
+    {
+      title: 'Reminders',
+      path: '/reminders',
+      icon: Bell,
     },
     {
       title: 'Tags',

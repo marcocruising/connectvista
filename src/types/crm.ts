@@ -53,6 +53,7 @@ export interface Conversation {
   updated_at: string;
   created_by: string;
   tags?: Tag[];
+  reminders?: Reminder[];
 }
 
 // Helper types
@@ -94,3 +95,16 @@ export type OptionType = {
   label: string;
   value: string;
 };
+
+export interface Reminder {
+  id: string;
+  conversation_id: string;
+  title: string;
+  description?: string;
+  due_date: string;
+  status: 'pending' | 'completed' | 'dismissed';
+  priority: 'low' | 'medium' | 'high';
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
