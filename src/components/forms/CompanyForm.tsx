@@ -164,7 +164,7 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
           )}
         </div>
 
-        {/* Tags section - without border and label */}
+        {/* Tags section - already without border and label as requested previously */}
         <div className="flex flex-wrap gap-2 min-h-[40px]">
           {tags.length > 0 ? (
             tags.map((tag) => (
