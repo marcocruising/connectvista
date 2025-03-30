@@ -7,10 +7,11 @@ import {
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardFooter
 } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { Edit, Trash2, Building, Calendar, Users, FileText } from 'lucide-react';
+import { Edit, Trash2, Building, Calendar, Users, FileText, Bell, Plus, X, Check } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -21,6 +22,10 @@ import {
 } from '@/components/ui/dialog';
 import TagBadge from '@/components/shared/TagBadge';
 import { ConversationForm } from '@/components/forms/ConversationForm';
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { reminderService } from '@/services/reminderService';
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,17 +37,27 @@ const ConversationDetail = () => {
     fetchConversations, 
     fetchCompanies, 
     fetchIndividuals,
-    deleteConversation
+    deleteConversation,
+    markReminderComplete,
+    dismissReminder,
+    fetchReminders
   } = useCRMStore();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [loadingReminders, setLoadingReminders] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState(null);
+  const [isConversationFormOpen, setIsConversationFormOpen] = useState(false);
 
   useEffect(() => {
     fetchConversations();
     fetchCompanies();
     fetchIndividuals();
-  }, [fetchConversations, fetchCompanies, fetchIndividuals]);
+    if (id) {
+      fetchConversationReminders();
+    }
+  }, [fetchConversations, fetchCompanies, fetchIndividuals, id]);
 
   const conversation = conversations.find(c => c.id === id);
   
@@ -55,6 +70,33 @@ const ConversationDetail = () => {
   const conversationIndividuals = individuals.filter(i => 
     conversation?.individualIds?.includes(i.id)
   );
+
+  const fetchConversationReminders = async () => {
+    if (!id) return;
+    
+    setLoadingReminders(true);
+    try {
+      const conversationReminders = await reminderService.getRemindersByConversation(id);
+      setReminders(conversationReminders);
+    } catch (error) {
+      console.error("Error fetching reminders:", error);
+    } finally {
+      setLoadingReminders(false);
+    }
+  };
+
+  const renderPriorityBadge = (priority: string) => {
+    switch (priority) {
+      case 'high':
+        return <Badge variant="destructive">High</Badge>;
+      case 'medium':
+        return <Badge variant="default">Medium</Badge>;
+      case 'low':
+        return <Badge variant="outline">Low</Badge>;
+      default:
+        return null;
+    }
+  };
 
   if (!conversation) {
     return (
@@ -215,6 +257,148 @@ const ConversationDetail = () => {
         </div>
       </div>
 
+      {/* Reminders Section */}
+      <div className="mt-8">
+        <div className="flex items-center mb-4">
+          <Bell className="h-5 w-5 mr-2 text-blue-600" />
+          <h2 className="text-lg font-medium">Reminders & Tasks</h2>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="ml-auto" 
+            onClick={() => {
+              setSelectedConversation(conversation);
+              setIsConversationFormOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Reminder
+          </Button>
+        </div>
+        
+        {loadingReminders ? (
+          <div className="space-y-3">
+            <Skeleton className="h-[80px] w-full rounded-md" />
+            <Skeleton className="h-[80px] w-full rounded-md" />
+          </div>
+        ) : reminders.length > 0 ? (
+          <div className="space-y-3">
+            {reminders.map(reminder => (
+              <Card key={reminder.id} className={`
+                ${reminder.priority === 'high' ? 'border-red-200' : ''} 
+                ${reminder.status === 'completed' ? 'bg-green-50' : ''}
+                ${reminder.status === 'dismissed' ? 'bg-gray-50' : ''}
+              `}>
+                <CardHeader className="py-3">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center">
+                        <CardTitle className="text-base">
+                          {reminder.title}
+                        </CardTitle>
+                        <div className="ml-2">
+                          {renderPriorityBadge(reminder.priority)}
+                        </div>
+                        {reminder.status === 'completed' && (
+                          <Badge variant="success" className="ml-2">Completed</Badge>
+                        )}
+                        {reminder.status === 'dismissed' && (
+                          <Badge variant="secondary" className="ml-2">Dismissed</Badge>
+                        )}
+                      </div>
+                      {reminder.description && (
+                        <CardDescription className="mt-1">
+                          {reminder.description}
+                        </CardDescription>
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      <div className="flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" /> 
+                        {format(new Date(reminder.due_date), 'MMM d, yyyy')}
+                      </div>
+                    </div>
+                  </div>
+                </CardHeader>
+                
+                <CardContent className="py-1 pb-3">
+                  <div className="flex flex-wrap items-center">
+                    <span className="text-xs text-gray-500 mr-2">Participants:</span>
+                    <div className="flex -space-x-2 overflow-hidden">
+                      {conversationIndividuals.map((individual) => (
+                        <Link 
+                          key={individual.id} 
+                          to={`/individuals/${individual.id}`}
+                          className="hover:z-10 transition-transform hover:scale-110"
+                        >
+                          <Avatar className="h-6 w-6 border border-white">
+                            <AvatarFallback className="text-xs bg-blue-200">
+                              {individual.first_name?.[0]}{individual.last_name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="sr-only">{individual.first_name} {individual.last_name}</span>
+                        </Link>
+                      ))}
+                      
+                      {company && (
+                        <Link 
+                          to={`/companies/${company.id}`}
+                          className="hover:z-10 transition-transform hover:scale-110"
+                        >
+                          <Avatar className="h-6 w-6 border border-white">
+                            <AvatarFallback className="text-xs bg-purple-200">
+                              {company.name?.[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="sr-only">{company.name}</span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+                
+                {reminder.status === 'pending' && (
+                  <CardFooter className="py-2 flex justify-end gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      onClick={async () => {
+                        await reminderService.dismissReminder(reminder.id);
+                        fetchConversationReminders();
+                      }}
+                      className="h-7 px-2 text-gray-500"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Dismiss
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="default" 
+                      onClick={async () => {
+                        await reminderService.markReminderAsComplete(reminder.id);
+                        fetchConversationReminders();
+                      }}
+                      className="h-7 px-2"
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Complete
+                    </Button>
+                  </CardFooter>
+                )}
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 bg-gray-50 rounded-md">
+            <Calendar className="h-10 w-10 mx-auto mb-2 opacity-30" />
+            <p>No reminders for this conversation</p>
+            <p className="text-sm mt-1">
+              Add a reminder to keep track of follow-ups
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
@@ -248,6 +432,26 @@ const ConversationDetail = () => {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Reminder Dialog */}
+      <Dialog open={isConversationFormOpen} onOpenChange={setIsConversationFormOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Add Reminder</DialogTitle>
+            <DialogDescription>
+              Create a reminder for this conversation
+            </DialogDescription>
+          </DialogHeader>
+          <ConversationForm
+            initialData={selectedConversation}
+            onSuccess={() => {
+              setIsConversationFormOpen(false);
+              setSelectedConversation(null);
+              fetchConversationReminders(); // Refresh reminders
+            }}
+          />
         </DialogContent>
       </Dialog>
     </div>
