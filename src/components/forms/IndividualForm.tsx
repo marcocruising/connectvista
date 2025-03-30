@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,9 +16,10 @@ import {
 import { Label } from '@/components/ui/label';
 import TagBadge from '@/components/shared/TagBadge';
 import { individualService } from '@/services/individualService';
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle, Plus } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { CompanyForm } from '@/components/forms/CompanyForm';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const individualSchema = z.object({
   first_name: z.string().min(1, 'First name is required'),
@@ -73,6 +74,18 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
 
   const selectedCompanyIdWatch = watch('company_id') || 'none';
 
+  // Track which optional fields are visible
+  const [visibleFields, setVisibleFields] = useState<string[]>(
+    initialData ? 
+      // Show fields that already have data
+      [
+        ...(initialData.email ? ['email'] : []),
+        ...(initialData.phone ? ['phone'] : []),
+        ...(initialData.role ? ['role'] : []),
+        ...(initialData.description ? ['description'] : [])
+      ] : []
+  );
+
   useEffect(() => {
     fetchCompanies();
     fetchTags();
@@ -126,128 +139,244 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
     );
   };
 
+  // Available optional fields that can be added
+  const availableOptionalFields = useMemo(() => {
+    const allOptionalFields = [
+      { id: 'email', label: 'Email' },
+      { id: 'phone', label: 'Phone Number' },
+      { id: 'role', label: 'Job Title' },
+      { id: 'description', label: 'Notes' },
+    ];
+    
+    // Filter out already visible fields
+    return allOptionalFields.filter(field => !visibleFields.includes(field.id));
+  }, [visibleFields]);
+
+  // Add an optional field
+  const addField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => [...prev, fieldId]);
+  }, []);
+
+  // Remove an optional field
+  const removeField = useCallback((fieldId: string) => {
+    setVisibleFields(prev => prev.filter(id => id !== fieldId));
+    // Clear the field value
+    setValue(fieldId as any, '');
+  }, [setValue]);
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Input
-            {...register('first_name')}
-            placeholder="First Name"
-          />
-          {errors.first_name && (
-            <p className="text-red-500 text-sm mt-1">{errors.first_name.message}</p>
-          )}
-        </div>
-
-        <div>
-          <Input
-            {...register('last_name')}
-            placeholder="Last Name"
-          />
-          {errors.last_name && (
-            <p className="text-red-500 text-sm mt-1">{errors.last_name.message}</p>
-          )}
-        </div>
-      </div>
-
-      <div>
-        <Input
-          {...register('email')}
-          type="email"
-          placeholder="Email"
-        />
-        {errors.email && (
-          <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
-        )}
-      </div>
-
-      <div>
-        <Input
-          {...register('phone')}
-          placeholder="Phone"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="company">Company</Label>
-        <div className="flex space-x-2 items-center">
-          <div className="flex-grow">
-            <Select
-              value={selectedCompanyIdWatch}
-              onValueChange={(value) => {
-                const companyId = value === "none" ? undefined : value;
-                setSelectedCompanyId(companyId);
-                setValue('company_id', companyId);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a company" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">None</SelectItem>
-                {companies.map((company) => (
-                  <SelectItem key={company.id} value={company.id}>
-                    {company.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      {/* Required/Core fields section */}
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Input
+              {...register('first_name')}
+              placeholder="First Name"
+            />
+            {errors.first_name && (
+              <p className="text-red-500 text-sm mt-1">{errors.first_name.message}</p>
+            )}
           </div>
-          
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsCompanyFormOpen(true)}
-            className="flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
-          >
-            <PlusCircle className="h-4 w-4 mr-1" />
-            Create New Company
-          </Button>
+
+          <div>
+            <Input
+              {...register('last_name')}
+              placeholder="Last Name"
+            />
+            {errors.last_name && (
+              <p className="text-red-500 text-sm mt-1">{errors.last_name.message}</p>
+            )}
+          </div>
+        </div>
+
+        {/* Company field - keeping this as a core field */}
+        <div className="space-y-2">
+          <Label htmlFor="company">Company</Label>
+          <div className="flex space-x-2 items-center">
+            <div className="flex-grow">
+              <Select
+                value={selectedCompanyIdWatch}
+                onValueChange={(value) => {
+                  const companyId = value === "none" ? undefined : value;
+                  setSelectedCompanyId(companyId);
+                  setValue('company_id', companyId);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a company" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.id}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCompanyFormOpen(true)}
+              className="flex items-center text-blue-600 hover:text-blue-800 whitespace-nowrap"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Create New Company
+            </Button>
+          </div>
+        </div>
+
+        {/* Tags - keeping this as a core field */}
+        <div className="space-y-2">
+          <Label>Tags</Label>
+          <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
+            {tags.map((tag) => (
+              <Button
+                key={tag.id}
+                type="button"
+                variant={selectedTagIds.includes(tag.id) ? "default" : "outline"}
+                size="sm"
+                onClick={() => handleTagSelection(tag.id)}
+                style={{
+                  backgroundColor: selectedTagIds.includes(tag.id) ? tag.color : 'transparent',
+                  borderColor: tag.color,
+                  color: selectedTagIds.includes(tag.id) ? 'white' : tag.color,
+                }}
+              >
+                {tag.name}
+              </Button>
+            ))}
+            {tags.length === 0 && (
+              <p className="text-gray-400 text-sm">No tags available</p>
+            )}
+          </div>
         </div>
       </div>
+      
+      {/* Optional fields section */}
+      {visibleFields.length > 0 && (
+        <div className="border-t pt-4 mt-4 space-y-3">
+          <h4 className="text-sm font-medium text-muted-foreground">Optional Information</h4>
+          
+          {visibleFields.includes('email') && (
+            <div className="relative">
+              <Input
+                {...register('email')}
+                type="email"
+                placeholder="Email"
+              />
+              {errors.email && (
+                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+              )}
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('email')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
 
-      <div>
-        <Input
-          {...register('role')}
-          placeholder="Job Title"
-        />
-      </div>
+          {visibleFields.includes('phone') && (
+            <div className="relative">
+              <Input
+                {...register('phone')}
+                placeholder="Phone"
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('phone')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
 
-      <div className="space-y-2">
-        <Label>Tags</Label>
-        <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
-          {tags.map((tag) => (
-            <Button
-              key={tag.id}
-              type="button"
-              variant={selectedTagIds.includes(tag.id) ? "default" : "outline"}
-              size="sm"
-              onClick={() => handleTagSelection(tag.id)}
-              style={{
-                backgroundColor: selectedTagIds.includes(tag.id) ? tag.color : 'transparent',
-                borderColor: tag.color,
-                color: selectedTagIds.includes(tag.id) ? 'white' : tag.color,
-              }}
-            >
-              {tag.name}
-            </Button>
-          ))}
-          {tags.length === 0 && (
-            <p className="text-gray-400 text-sm">No tags available</p>
+          {visibleFields.includes('role') && (
+            <div className="relative">
+              <Input
+                {...register('role')}
+                placeholder="Job Title"
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('role')}
+              >
+                Remove
+              </Button>
+            </div>
+          )}
+
+          {visibleFields.includes('description') && (
+            <div className="relative">
+              <Textarea
+                {...register('description')}
+                placeholder="Notes"
+                rows={4}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm" 
+                className="absolute right-2 top-3 h-6 text-gray-500 hover:text-gray-800"
+                onClick={() => removeField('description')}
+              >
+                Remove
+              </Button>
+            </div>
           )}
         </div>
+      )}
+
+      {/* Add optional field dropdown */}
+      <div className={`${visibleFields.length > 0 ? 'mt-2' : 'pt-2 mt-4 border-t'}`}>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button 
+              variant="outline" 
+              type="button" 
+              className="flex items-center text-muted-foreground"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Add field
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2">
+            <div className="grid gap-1">
+              {availableOptionalFields.map(field => (
+                <Button 
+                  key={field.id} 
+                  variant="ghost" 
+                  size="sm" 
+                  className="justify-start font-normal" 
+                  onClick={() => addField(field.id)}
+                >
+                  {field.label}
+                </Button>
+              ))}
+              {availableOptionalFields.length === 0 && (
+                <p className="text-muted-foreground text-sm px-2 py-1">All optional fields added</p>
+              )}
+            </div>
+          </PopoverContent>
+        </Popover>
       </div>
 
-      <div>
-        <Textarea
-          {...register('description')}
-          placeholder="Notes"
-          rows={4}
-        />
-      </div>
-
-      <Button type="submit" className="w-full">
+      <Button type="submit" className="w-full mt-6">
         {initialData?.id ? 'Save Changes' : 'Add Individual'}
       </Button>
       
