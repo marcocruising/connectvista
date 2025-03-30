@@ -190,9 +190,8 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
           </div>
         </div>
 
-        {/* Company field - keeping this as a core field */}
+        {/* Company field - changing "None" to "Select company" */}
         <div className="space-y-2">
-          <Label htmlFor="company">Company</Label>
           <div className="flex space-x-2 items-center">
             <div className="flex-grow">
               <Select
@@ -207,7 +206,7 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
                   <SelectValue placeholder="Select a company" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
+                  <SelectItem value="none">Select company</SelectItem>
                   {companies.map((company) => (
                     <SelectItem key={company.id} value={company.id}>
                       {company.name}
@@ -230,11 +229,10 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
           </div>
         </div>
 
-        {/* Tags - keeping this as a core field */}
-        <div className="space-y-2">
-          <Label>Tags</Label>
-          <div className="flex flex-wrap gap-2 border p-2 rounded min-h-[60px]">
-            {tags.map((tag) => (
+        {/* Tags - removing label and border */}
+        <div className="flex flex-wrap gap-2 min-h-[40px]">
+          {tags.length > 0 ? (
+            tags.map((tag) => (
               <Button
                 key={tag.id}
                 type="button"
@@ -249,11 +247,10 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
               >
                 {tag.name}
               </Button>
-            ))}
-            {tags.length === 0 && (
-              <p className="text-gray-400 text-sm">No tags available</p>
-            )}
-          </div>
+            ))
+          ) : (
+            <p className="text-gray-400 text-sm">No tags available</p>
+          )}
         </div>
       </div>
       
