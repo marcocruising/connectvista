@@ -274,7 +274,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
   };
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
       {/* 1. Conversation Title */}
       <div>
         <Input
@@ -660,11 +660,15 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </Popover>
       </div>
 
-      <Button type="submit" className="w-full mt-6">
+      <Button 
+        type="button"
+        className="w-full mt-6"
+        onClick={form.handleSubmit(onSubmit)}
+      >
         {initialData?.id ? 'Update Conversation' : 'Add Conversation'}
       </Button>
       
-      {/* Dialogs - unchanged */}
+      {/* Dialogs */}
       <Dialog open={isIndividualFormOpen} onOpenChange={setIsIndividualFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -680,6 +684,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         </DialogContent>
       </Dialog>
       
+      {/* Company dialog */}
       <Dialog open={isCompanyFormOpen} onOpenChange={setIsCompanyFormOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
@@ -688,9 +693,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
               Fill in the details to create a new company.
             </DialogDescription>
           </DialogHeader>
-          <CompanyForm 
-            onSuccess={(newCompanyId) => handleCompanyCreated(newCompanyId)} 
-          />
+          <CompanyForm onSuccess={handleCompanyCreated} />
         </DialogContent>
       </Dialog>
       
@@ -707,6 +710,6 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
           />
         </DialogContent>
       </Dialog>
-    </form>
+    </div>
   );
 }; 
