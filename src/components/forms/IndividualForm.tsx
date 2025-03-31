@@ -99,29 +99,23 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
 
   const onSubmit = async (data: IndividualFormData) => {
     try {
-      // Log what we're about to submit
-      console.log('Form data:', data);
-      console.log('Selected tags:', selectedTagIds);
-      
-      // First, try just saving the individual data without tags
-      const basicData = { ...data };
+      let individualId: string;
       
       if (initialData?.id) {
-        await updateIndividual(initialData.id, basicData);
-        // After successful update, handle tags separately
-        await individualService.updateIndividualTags(initialData.id, selectedTagIds);
-        // Update the store with the tags
-        await updateIndividualWithTags(initialData.id, selectedTagIds);
+        // Update existing individual
+        const updatedIndividual = await updateIndividual(initialData.id, data);
+        individualId = updatedIndividual.id;
+        // Update individual tags
+        await updateIndividualWithTags(individualId, selectedTagIds);
       } else {
-        const newIndividual = await addIndividual(basicData);
-        // After successful creation, handle tags separately
-        if (newIndividual?.id) {
-          await individualService.updateIndividualTags(newIndividual.id, selectedTagIds);
-          // Update the store with the tags
-          await updateIndividualWithTags(newIndividual.id, selectedTagIds);
-        }
+        // Create new individual
+        const newIndividual = await addIndividual(data);
+        individualId = newIndividual.id;
+        // Add individual tags
+        await updateIndividualWithTags(individualId, selectedTagIds);
       }
-      onSuccess?.(initialData?.id || newIndividual?.id || '');
+      
+      onSuccess?.(individualId);
     } catch (error) {
       console.error('Failed to save individual:', error);
     }
@@ -165,7 +159,7 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
   }, [setValue]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
       {/* Required/Core fields section */}
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
@@ -373,7 +367,11 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
         </Popover>
       </div>
 
-      <Button type="submit" className="w-full mt-6">
+      <Button 
+        type="button"
+        className="w-full mt-6"
+        onClick={handleSubmit(onSubmit)}
+      >
         {initialData?.id ? 'Save Changes' : 'Add Individual'}
       </Button>
       
@@ -385,11 +383,9 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
               Fill in the details to create a new company.
             </DialogDescription>
           </DialogHeader>
-          <CompanyForm 
-            onSuccess={(newCompanyId) => handleCompanyCreated(newCompanyId)} 
-          />
+          <CompanyForm onSuccess={handleCompanyCreated} />
         </DialogContent>
       </Dialog>
-    </form>
+    </div>
   );
 }; 

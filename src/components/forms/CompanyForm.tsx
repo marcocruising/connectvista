@@ -151,7 +151,7 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
   }, [setValue]);
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <div className="space-y-4">
       {/* Required Fields Section */}
       <div className="space-y-4">
         <div>
@@ -288,9 +288,13 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
         </Popover>
       </div>
 
-      <Button type="submit" className="w-full mt-6">
+      <Button 
+        type="button"
+        className="w-full mt-6"
+        onClick={handleSubmit(onSubmit)}
+      >
         {initialData?.id ? 'Save Changes' : 'Add Company'}
       </Button>
-    </form>
+    </div>
   );
 }; 
