@@ -20,6 +20,7 @@ import Debug from "./pages/Debug";
 import Settings from "./pages/Settings";
 import Reminders from '@/pages/Reminders';
 import AuthCallback from '@/pages/AuthCallback';
+import GoogleAuthCallback from '@/pages/GoogleAuthCallback';
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => {
               <Route path="/debug" element={<Debug />} />
               <Route path="/reminders" element={<Reminders />} />
             </Route>
+            <Route path="/api/auth/google/callback" element={<GoogleAuthCallback />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

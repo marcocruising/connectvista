@@ -121,4 +121,104 @@ export const individualService = {
     
     if (error) throw error;
   }
-}; 
+};
+
+/**
+ * Look up individuals by email or name
+ */
+export async function findIndividualByEmailOrName(email: string, name: string) {
+  try {
+    // First try exact email match (most reliable)
+    const { data: emailMatch, error: emailError } = await supabase
+      .from('individuals')
+      .select('id, company_id, name, email')
+      .eq('email', email)
+      .maybeSingle();
+    
+    if (emailError) {
+      console.error('Error searching by email:', emailError);
+    }
+    
+    if (emailMatch) {
+      return emailMatch;
+    }
+    
+    // If no match by email, try name match
+    if (name && name.length > 2) { // Only search if name is meaningful
+      const { data: nameMatch, error: nameError } = await supabase
+        .from('individuals')
+        .select('id, company_id, name, email')
+        .ilike('name', `%${name}%`)
+        .maybeSingle();
+      
+      if (nameError) {
+        console.error('Error searching by name:', nameError);
+      }
+      
+      if (nameMatch) {
+        return nameMatch;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error finding individual:', error);
+    return null;
+  }
+}
+
+/**
+ * Create a new individual from calendar attendee
+ */
+export async function createIndividualFromAttendee(email: string, name: string) {
+  try {
+    // Extract domain to guess company
+    const domain = email.split('@')[1];
+    
+    let company_id = null;
+    let company_name = null;
+    
+    // Try to find a company with this domain
+    if (domain) {
+      const { data: companyMatch } = await supabase
+        .from('companies')
+        .select('id, name')
+        .ilike('website', `%${domain}%`)
+        .maybeSingle();
+        
+      if (companyMatch) {
+        company_id = companyMatch.id;
+        company_name = companyMatch.name;
+      }
+    }
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Create the new individual
+    const newIndividual = {
+      name: name || email.split('@')[0],
+      email: email,
+      company_id: company_id,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: user?.id
+    };
+    
+    const { data, error } = await supabase
+      .from('individuals')
+      .insert(newIndividual)
+      .select('id, company_id, name, email')  // Return all fields needed
+      .single();
+      
+    if (error) {
+      console.error('Error creating individual:', error);
+      return null;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('Error creating individual from attendee:', error);
+    return null;
+  }
+} 
