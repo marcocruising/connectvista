@@ -19,6 +19,7 @@ import ConversationDetail from './pages/ConversationDetail';
 import Debug from "./pages/Debug";
 import Settings from "./pages/Settings";
 import Reminders from '@/pages/Reminders';
+import AuthCallback from '@/pages/AuthCallback';
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
             <Route
               element={
                 <ProtectedRoute>

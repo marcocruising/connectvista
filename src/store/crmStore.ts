@@ -6,6 +6,7 @@ import { individualService } from '@/services/individualService';
 import { conversationService } from '@/services/conversationService';
 import { authService } from '@/services/authService';
 import { reminderService } from '@/services/reminderService';
+import { supabase } from '@/lib/supabase';
 
 interface CRMState {
   // Data
@@ -70,6 +71,9 @@ interface CRMState {
   deleteReminder: (id: string) => Promise<void>;
   markReminderComplete: (id: string) => Promise<void>;
   dismissReminder: (id: string) => Promise<void>;
+  
+  // Add signInWithGoogle to the interface
+  signInWithGoogle: () => Promise<void>;
 }
 
 export const useCRMStore = create<CRMState>((set, get) => ({
@@ -351,10 +355,22 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   // Auth actions
   initializeAuth: async () => {
     try {
-      const user = await authService.getCurrentUser();
-      set({ user, isAuthenticated: !!user });
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user || null;
+      
+      set({ 
+        user,
+        isAuthenticated: !!user,
+        isLoading: false,
+        error: null
+      });
     } catch (error) {
-      set({ user: null, isAuthenticated: false });
+      set({ 
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        error: 'Failed to initialize auth'
+      });
     }
   },
 
@@ -479,6 +495,23 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       }));
     } catch (error) {
       console.error("Error dismissing reminder:", error);
+    }
+  },
+
+  signInWithGoogle: async () => {
+    try {
+      set({ error: null, isLoading: true });
+      const data = await authService.signInWithGoogle();
+      set({ 
+        user: data.user,
+        isAuthenticated: true,
+        isLoading: false 
+      });
+    } catch (error) {
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to sign in with Google',
+        isLoading: false 
+      });
     }
   },
 }));
