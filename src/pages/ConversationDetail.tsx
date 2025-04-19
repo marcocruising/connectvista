@@ -11,7 +11,7 @@ import {
   CardFooter
 } from '@/components/ui/card';
 import { format } from 'date-fns';
-import { Edit, Trash2, Building, Calendar, Users, FileText, Bell, Plus, X, Check } from 'lucide-react';
+import { Edit, Trash2, Building, Calendar, Users, FileText, Bell, Plus, X, Check, User } from 'lucide-react';
 import { 
   Dialog, 
   DialogContent, 
@@ -26,6 +26,21 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { reminderService } from '@/services/reminderService';
+import { Reminder } from '@/types/crm';
+
+// Add a new getUserDisplayName helper function
+const getUserDisplayName = (email: string) => {
+  if (!email) return 'Unknown';
+  
+  // Some created_by values might be UUIDs rather than emails
+  if (email.includes('@')) {
+    // Extract username from email address
+    return email.split('@')[0];
+  }
+  
+  // If it's not an email, just return the value as is
+  return email;
+};
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -209,6 +224,18 @@ const ConversationDetail = () => {
                     </Link>
                   </div>
                 )}
+                
+                <div className="flex items-center">
+                  <User className="h-5 w-5 mr-2 text-gray-500" />
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarFallback className="text-xs bg-purple-200">
+                        {getUserDisplayName(conversation.created_by)[0]?.toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span>Created by {getUserDisplayName(conversation.created_by)}</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -302,7 +329,7 @@ const ConversationDetail = () => {
                           {renderPriorityBadge(reminder.priority)}
                         </div>
                         {reminder.status === 'completed' && (
-                          <Badge variant="success" className="ml-2">Completed</Badge>
+                          <Badge variant="outline" className="ml-2 bg-green-100 text-green-700">Completed</Badge>
                         )}
                         {reminder.status === 'dismissed' && (
                           <Badge variant="secondary" className="ml-2">Dismissed</Badge>
@@ -498,7 +525,7 @@ const ConversationDetail = () => {
                   title,
                   description,
                   due_date,
-                  priority
+                  priority: priority as 'high' | 'medium' | 'low'
                 });
                 
                 setIsReminderEditDialogOpen(false);

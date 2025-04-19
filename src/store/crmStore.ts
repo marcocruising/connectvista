@@ -19,6 +19,7 @@ interface CRMState {
   // UI state
   searchQuery: string;
   selectedTags: string[];
+  selectedCreator: string | null;
   isLoading: boolean;
   error: string | null;
   isLoadingReminders: boolean;
@@ -30,6 +31,7 @@ interface CRMState {
   // Actions
   setSearchQuery: (query: string) => void;
   setSelectedTags: (tagIds: string[]) => void;
+  setSelectedCreator: (creatorId: string | null) => void;
   clearError: () => void;
   
   // Data fetching
@@ -85,6 +87,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   reminders: [],
   searchQuery: '',
   selectedTags: [],
+  selectedCreator: null,
   isLoading: false,
   error: null,
   isLoadingReminders: false,
@@ -96,6 +99,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   // UI actions
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
+  setSelectedCreator: (creatorId) => set({ selectedCreator: creatorId }),
   clearError: () => set({ error: null }),
 
   // Data fetching
@@ -558,11 +562,11 @@ export const useFilteredCompanies = () => {
 };
 
 export const useFilteredConversations = () => {
-  const { conversations, companies, individuals, searchQuery, selectedTags } = useCRMStore();
+  const { conversations, companies, individuals, searchQuery, selectedTags, selectedCreator } = useCRMStore();
   
   return conversations.filter((conversation) => {
-    // If no search query and no selected tags, include all conversations
-    if (searchQuery === '' && selectedTags.length === 0) {
+    // If no search query, no selected tags, and no selectedCreator, include all conversations
+    if (searchQuery === '' && selectedTags.length === 0 && !selectedCreator) {
       return true;
     }
     
@@ -621,7 +625,10 @@ export const useFilteredConversations = () => {
       selectedTags.length === 0 ||
       (conversation.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
     
-    return matchesSearch && matchesTags;
+    // Filter by selected creator
+    const matchesCreator = !selectedCreator || conversation.created_by === selectedCreator;
+    
+    return matchesSearch && matchesTags && matchesCreator;
   });
 };
 

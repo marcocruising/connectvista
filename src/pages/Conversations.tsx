@@ -18,9 +18,11 @@ import {
 import { ConversationForm } from '@/components/forms/ConversationForm';
 import TagBadge from '@/components/shared/TagBadge';
 import TagFilter from '@/components/shared/TagFilter';
+import CreatorFilter from '@/components/shared/CreatorFilter';
 import SearchBar from '@/components/shared/SearchBar';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const columnHelper = createColumnHelper<Conversation>();
 
@@ -30,7 +32,6 @@ const Conversations = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
   const { selectedTags, setSelectedTags } = useCRMStore();
 
   useEffect(() => {
@@ -54,6 +55,19 @@ const Conversations = () => {
       setIsDeleteDialogOpen(false);
       setSelectedConversation(null);
     }
+  };
+
+  const getUserDisplayName = (email: string) => {
+    if (!email) return 'Unknown';
+    
+    // Some created_by values might be UUIDs rather than emails
+    if (email.includes('@')) {
+      // Extract username from email address
+      return email.split('@')[0];
+    }
+    
+    // If it's not an email, just return the value as is
+    return email;
   };
 
   const columns = [
@@ -117,6 +131,27 @@ const Conversations = () => {
         );
       },
     }),
+    columnHelper.accessor('created_by', {
+      header: 'Created By',
+      cell: (info) => {
+        const creatorEmail = info.getValue();
+        if (!creatorEmail) return '-';
+        
+        // Get display name
+        const displayName = getUserDisplayName(creatorEmail);
+        
+        return (
+          <div className="flex items-center gap-2">
+            <Avatar className="h-6 w-6">
+              <AvatarFallback className="text-xs bg-purple-200">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span>{displayName}</span>
+          </div>
+        );
+      },
+    }),
     columnHelper.accessor('tags', {
       header: 'Tags',
       cell: (info) => {
@@ -176,16 +211,15 @@ const Conversations = () => {
         </Button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div>
-          <SearchBar 
-            value={searchQuery} 
-            onChange={setSearchQuery} 
-            placeholder="Search conversations..." 
-          />
+          <SearchBar />
         </div>
         <div>
           <TagFilter />
+        </div>
+        <div>
+          <CreatorFilter />
         </div>
       </div>
 
