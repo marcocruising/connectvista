@@ -19,7 +19,7 @@ interface CRMState {
   // UI state
   searchQuery: string;
   selectedTags: string[];
-  selectedCreator: string | null;
+  selectedCreators: string[];
   isLoading: boolean;
   error: string | null;
   isLoadingReminders: boolean;
@@ -31,7 +31,7 @@ interface CRMState {
   // Actions
   setSearchQuery: (query: string) => void;
   setSelectedTags: (tagIds: string[]) => void;
-  setSelectedCreator: (creatorId: string | null) => void;
+  setSelectedCreators: (creatorIds: string[]) => void;
   clearError: () => void;
   
   // Data fetching
@@ -87,7 +87,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   reminders: [],
   searchQuery: '',
   selectedTags: [],
-  selectedCreator: null,
+  selectedCreators: [],
   isLoading: false,
   error: null,
   isLoadingReminders: false,
@@ -99,7 +99,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   // UI actions
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
-  setSelectedCreator: (creatorId) => set({ selectedCreator: creatorId }),
+  setSelectedCreators: (creatorIds) => set({ selectedCreators: creatorIds }),
   clearError: () => set({ error: null }),
 
   // Data fetching
@@ -562,11 +562,11 @@ export const useFilteredCompanies = () => {
 };
 
 export const useFilteredConversations = () => {
-  const { conversations, companies, individuals, searchQuery, selectedTags, selectedCreator } = useCRMStore();
+  const { conversations, companies, individuals, searchQuery, selectedTags, selectedCreators } = useCRMStore();
   
   return conversations.filter((conversation) => {
-    // If no search query, no selected tags, and no selectedCreator, include all conversations
-    if (searchQuery === '' && selectedTags.length === 0 && !selectedCreator) {
+    // If no search query, no selected tags, and no selected creators, include all conversations
+    if (searchQuery === '' && selectedTags.length === 0 && selectedCreators.length === 0) {
       return true;
     }
     
@@ -625,10 +625,12 @@ export const useFilteredConversations = () => {
       selectedTags.length === 0 ||
       (conversation.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
     
-    // Filter by selected creator
-    const matchesCreator = !selectedCreator || conversation.created_by === selectedCreator;
+    // Filter by selected creators
+    const matchesCreators =
+      selectedCreators.length === 0 ||
+      (conversation.created_by && selectedCreators.includes(conversation.created_by));
     
-    return matchesSearch && matchesTags && matchesCreator;
+    return matchesSearch && matchesTags && matchesCreators;
   });
 };
 

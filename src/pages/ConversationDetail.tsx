@@ -26,21 +26,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { reminderService } from '@/services/reminderService';
+import { supabase } from '@/lib/supabase';
 import { Reminder } from '@/types/crm';
-
-// Add a new getUserDisplayName helper function
-const getUserDisplayName = (email: string) => {
-  if (!email) return 'Unknown';
-  
-  // Some created_by values might be UUIDs rather than emails
-  if (email.includes('@')) {
-    // Extract username from email address
-    return email.split('@')[0];
-  }
-  
-  // If it's not an email, just return the value as is
-  return email;
-};
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -66,6 +53,7 @@ const ConversationDetail = () => {
   const [isConversationFormOpen, setIsConversationFormOpen] = useState(false);
   const [selectedReminder, setSelectedReminder] = useState(null);
   const [isReminderEditDialogOpen, setIsReminderEditDialogOpen] = useState(false);
+  const [creatorInfo, setCreatorInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchConversations();
@@ -87,6 +75,63 @@ const ConversationDetail = () => {
   const conversationIndividuals = individuals.filter(i => 
     conversation?.individualIds?.includes(i.id)
   );
+
+  // Fetch creator info when conversation is loaded
+  useEffect(() => {
+    const fetchCreatorInfo = async () => {
+      if (!conversation?.created_by) return;
+      
+      try {
+        // Get current user info from session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user && session.user.id === conversation.created_by) {
+          // If current user is the creator, use their info
+          setCreatorInfo({
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata
+          });
+        } else {
+          // Otherwise, just use the ID for display
+          setCreatorInfo({
+            id: conversation.created_by,
+            email: ''
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching creator info:", error);
+      }
+    };
+    
+    fetchCreatorInfo();
+  }, [conversation]);
+
+  const getUserDisplayName = () => {
+    if (!conversation?.created_by) return 'Unknown';
+    
+    if (!creatorInfo) {
+      // Display a shortened UUID if we don't have profile info
+      return conversation.created_by.substring(0, 8) + '...';
+    }
+    
+    // First try to get the display name from metadata (from Google sign-in)
+    if (creatorInfo.user_metadata?.name) {
+      return creatorInfo.user_metadata.name;
+    }
+    
+    // Then try to get the full name
+    if (creatorInfo.user_metadata?.full_name) {
+      return creatorInfo.user_metadata.full_name;
+    }
+    
+    // Then try to get username from email
+    if (creatorInfo.email) {
+      return creatorInfo.email.split('@')[0];
+    }
+    
+    // Fall back to shortened UUID
+    return conversation.created_by.substring(0, 8) + '...';
+  };
 
   const fetchConversationReminders = async () => {
     if (!id) return;
@@ -224,16 +269,16 @@ const ConversationDetail = () => {
                     </Link>
                   </div>
                 )}
-                
+
                 <div className="flex items-center">
                   <User className="h-5 w-5 mr-2 text-gray-500" />
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
                       <AvatarFallback className="text-xs bg-purple-200">
-                        {getUserDisplayName(conversation.created_by)[0]?.toUpperCase()}
+                        {getUserDisplayName()[0]?.toUpperCase() || 'U'}
                       </AvatarFallback>
                     </Avatar>
-                    <span>Created by {getUserDisplayName(conversation.created_by)}</span>
+                    <span>Created by {getUserDisplayName()}</span>
                   </div>
                 </div>
               </div>
@@ -329,7 +374,7 @@ const ConversationDetail = () => {
                           {renderPriorityBadge(reminder.priority)}
                         </div>
                         {reminder.status === 'completed' && (
-                          <Badge variant="outline" className="ml-2 bg-green-100 text-green-700">Completed</Badge>
+                          <Badge variant="secondary" className="ml-2">Completed</Badge>
                         )}
                         {reminder.status === 'dismissed' && (
                           <Badge variant="secondary" className="ml-2">Dismissed</Badge>

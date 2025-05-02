@@ -22,7 +22,8 @@ import CreatorFilter from '@/components/shared/CreatorFilter';
 import SearchBar from '@/components/shared/SearchBar';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { supabase } from '@/lib/supabase';
 
 const columnHelper = createColumnHelper<Conversation>();
 
@@ -32,12 +33,80 @@ const Conversations = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   const { selectedTags, setSelectedTags } = useCRMStore();
+  const [creatorUsers, setCreatorUsers] = useState<Record<string, any>>({});
 
   useEffect(() => {
     fetchConversations();
     fetchIndividuals();
   }, [fetchConversations, fetchIndividuals]);
+
+  // Fetch user information for creators
+  useEffect(() => {
+    const fetchCreatorInfo = async () => {
+      const creatorIds = [...new Set(conversations.map(c => c.created_by).filter(Boolean))];
+      const users: Record<string, any> = {};
+      
+      // Get current user info from session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const currentUser = session.user;
+        // Add the current user to our users object
+        if (creatorIds.includes(currentUser.id)) {
+          users[currentUser.id] = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            user_metadata: currentUser.user_metadata
+          };
+        }
+      }
+      
+      // For other users, we can't fetch their data directly, so we'll just display IDs
+      creatorIds.forEach(creatorId => {
+        if (!users[creatorId]) {
+          users[creatorId] = {
+            id: creatorId,
+            email: ''
+          };
+        }
+      });
+      
+      setCreatorUsers(users);
+    };
+
+    if (conversations.length > 0) {
+      fetchCreatorInfo();
+    }
+  }, [conversations]);
+
+  const getUserDisplayName = (creatorId: string) => {
+    if (!creatorId) return 'Unknown';
+    
+    const user = creatorUsers[creatorId];
+    if (!user) {
+      // Display a shortened UUID if we don't have user info
+      return creatorId.substring(0, 8) + '...';
+    }
+    
+    // First try to get the display name from metadata (from Google sign-in)
+    if (user.user_metadata?.name) {
+      return user.user_metadata.name;
+    }
+    
+    // Then try to get the full name
+    if (user.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    
+    // Then try to get username from email
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    
+    // Fall back to shortened UUID
+    return creatorId.substring(0, 8) + '...';
+  };
 
   const handleEdit = (conversation: Conversation) => {
     setSelectedConversation(conversation);
@@ -55,19 +124,6 @@ const Conversations = () => {
       setIsDeleteDialogOpen(false);
       setSelectedConversation(null);
     }
-  };
-
-  const getUserDisplayName = (email: string) => {
-    if (!email) return 'Unknown';
-    
-    // Some created_by values might be UUIDs rather than emails
-    if (email.includes('@')) {
-      // Extract username from email address
-      return email.split('@')[0];
-    }
-    
-    // If it's not an email, just return the value as is
-    return email;
   };
 
   const columns = [
@@ -134,17 +190,15 @@ const Conversations = () => {
     columnHelper.accessor('created_by', {
       header: 'Created By',
       cell: (info) => {
-        const creatorEmail = info.getValue();
-        if (!creatorEmail) return '-';
+        const creatorId = info.getValue();
+        if (!creatorId) return '-';
         
-        // Get display name
-        const displayName = getUserDisplayName(creatorEmail);
-        
+        const displayName = getUserDisplayName(creatorId);
         return (
           <div className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
               <AvatarFallback className="text-xs bg-purple-200">
-                {displayName[0]?.toUpperCase()}
+                {displayName[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             <span>{displayName}</span>
@@ -213,7 +267,9 @@ const Conversations = () => {
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div>
-          <SearchBar />
+          <SearchBar 
+            placeholder="Search conversations..." 
+          />
         </div>
         <div>
           <TagFilter />
