@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import { Conversation } from '@/types/crm';
+import { Conversation, Tag } from '@/types/crm';
 
 export const conversationService = {
   async getConversations() {
@@ -27,6 +27,8 @@ export const conversationService = {
         console.error("Error fetching conversations:", error);
         throw error;
       }
+
+      console.log("Raw conversations data from Supabase:", conversationsData);
       
       // Fetch individual associations for all conversations
       const { data: participantsData, error: participantsError } = await supabase
@@ -37,6 +39,8 @@ export const conversationService = {
         console.error("Error fetching conversation participants:", participantsError);
         throw participantsError;
       }
+
+      console.log("Raw participants data from Supabase:", participantsData);
       
       // Fetch tag associations for all conversations
       const { data: tagsData, error: tagsError } = await supabase
@@ -47,6 +51,8 @@ export const conversationService = {
         console.error("Error fetching conversation tags:", tagsError);
         throw tagsError;
       }
+
+      console.log("Raw tags data from Supabase:", tagsData);
       
       // Process and combine the data
       const conversations = conversationsData.map(conversation => {
@@ -58,10 +64,9 @@ export const conversationService = {
         // Get tags for this conversation
         const tags = tagsData
           .filter(t => t.conversation_id === conversation.id)
-          .map(t => t.tags);
+          .flatMap(t => t.tags as unknown as Tag[]);
         
-        return {
-          ...conversation,
+        const processedConversation: Conversation = {
           id: conversation.id,
           title: conversation.title,
           date: conversation.date,
@@ -70,12 +75,18 @@ export const conversationService = {
           nextSteps: conversation.next_steps,
           notes: conversation.notes,
           individualIds: individualIds,
-          tags: tags
+          tags: tags,
+          created_at: conversation.created_at,
+          updated_at: conversation.updated_at,
+          created_by: conversation.created_by
         };
+
+        console.log("Processed conversation:", processedConversation);
+        return processedConversation;
       });
       
-      console.log("Fetched conversations:", conversations);
-      return conversations as Conversation[];
+      console.log("Final processed conversations:", conversations);
+      return conversations;
     } catch (error) {
       console.error("Error in getConversations:", error);
       throw error;

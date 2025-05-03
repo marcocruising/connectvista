@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useFilteredConversations, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
@@ -37,96 +37,8 @@ const Conversations = () => {
   const { selectedTags, setSelectedTags } = useCRMStore();
   const [creatorUsers, setCreatorUsers] = useState<Record<string, any>>({});
 
-  useEffect(() => {
-    fetchConversations();
-    fetchIndividuals();
-  }, [fetchConversations, fetchIndividuals]);
-
-  // Fetch user information for creators
-  useEffect(() => {
-    const fetchCreatorInfo = async () => {
-      const creatorIds = [...new Set(conversations.map(c => c.created_by).filter(Boolean))];
-      const users: Record<string, any> = {};
-      
-      // Get current user info from session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const currentUser = session.user;
-        // Add the current user to our users object
-        if (creatorIds.includes(currentUser.id)) {
-          users[currentUser.id] = {
-            id: currentUser.id,
-            email: currentUser.email || '',
-            user_metadata: currentUser.user_metadata
-          };
-        }
-      }
-      
-      // For other users, we can't fetch their data directly, so we'll just display IDs
-      creatorIds.forEach(creatorId => {
-        if (!users[creatorId]) {
-          users[creatorId] = {
-            id: creatorId,
-            email: ''
-          };
-        }
-      });
-      
-      setCreatorUsers(users);
-    };
-
-    if (conversations.length > 0) {
-      fetchCreatorInfo();
-    }
-  }, [conversations]);
-
-  const getUserDisplayName = (creatorId: string) => {
-    if (!creatorId) return 'Unknown';
-    
-    const user = creatorUsers[creatorId];
-    if (!user) {
-      // Display a shortened UUID if we don't have user info
-      return creatorId.substring(0, 8) + '...';
-    }
-    
-    // First try to get the display name from metadata (from Google sign-in)
-    if (user.user_metadata?.name) {
-      return user.user_metadata.name;
-    }
-    
-    // Then try to get the full name
-    if (user.user_metadata?.full_name) {
-      return user.user_metadata.full_name;
-    }
-    
-    // Then try to get username from email
-    if (user.email) {
-      return user.email.split('@')[0];
-    }
-    
-    // Fall back to shortened UUID
-    return creatorId.substring(0, 8) + '...';
-  };
-
-  const handleEdit = (conversation: Conversation) => {
-    setSelectedConversation(conversation);
-    setIsFormOpen(true);
-  };
-
-  const handleDelete = (conversation: Conversation) => {
-    setSelectedConversation(conversation);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (selectedConversation) {
-      await deleteConversation(selectedConversation.id);
-      setIsDeleteDialogOpen(false);
-      setSelectedConversation(null);
-    }
-  };
-
-  const columns = [
+  // Memoize the columns to prevent unnecessary re-renders
+  const columns = useMemo(() => [
     columnHelper.accessor('title', {
       header: 'Title',
       cell: ({ row }) => {
@@ -242,7 +154,97 @@ const Conversations = () => {
         </div>
       ),
     }),
-  ];
+  ], []); // Empty dependency array since columns don't depend on any props or state
+
+  // Fetch initial data only once
+  useEffect(() => {
+    fetchConversations();
+    fetchIndividuals();
+  }, []); // Empty dependency array since we only want to fetch once
+
+  // Fetch creator info only when conversations change
+  useEffect(() => {
+    const fetchCreatorInfo = async () => {
+      const creatorIds = [...new Set(conversations.map(c => c.created_by).filter(Boolean))];
+      const users: Record<string, any> = {};
+      
+      // Get current user info from session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const currentUser = session.user;
+        // Add the current user to our users object
+        if (creatorIds.includes(currentUser.id)) {
+          users[currentUser.id] = {
+            id: currentUser.id,
+            email: currentUser.email || '',
+            user_metadata: currentUser.user_metadata
+          };
+        }
+      }
+      
+      // For other users, we can't fetch their data directly, so we'll just display IDs
+      creatorIds.forEach(creatorId => {
+        if (!users[creatorId]) {
+          users[creatorId] = {
+            id: creatorId,
+            email: ''
+          };
+        }
+      });
+      
+      setCreatorUsers(users);
+    };
+
+    if (conversations.length > 0) {
+      fetchCreatorInfo();
+    }
+  }, [conversations]); // Only re-run when conversations change
+
+  const getUserDisplayName = (creatorId: string) => {
+    if (!creatorId) return 'Unknown';
+    
+    const user = creatorUsers[creatorId];
+    if (!user) {
+      // Display a shortened UUID if we don't have user info
+      return creatorId.substring(0, 8) + '...';
+    }
+    
+    // First try to get the display name from metadata (from Google sign-in)
+    if (user.user_metadata?.name) {
+      return user.user_metadata.name;
+    }
+    
+    // Then try to get the full name
+    if (user.user_metadata?.full_name) {
+      return user.user_metadata.full_name;
+    }
+    
+    // Then try to get username from email
+    if (user.email) {
+      return user.email.split('@')[0];
+    }
+    
+    // Fall back to shortened UUID
+    return creatorId.substring(0, 8) + '...';
+  };
+
+  const handleEdit = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setIsFormOpen(true);
+  };
+
+  const handleDelete = (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (selectedConversation) {
+      await deleteConversation(selectedConversation.id);
+      setIsDeleteDialogOpen(false);
+      setSelectedConversation(null);
+    }
+  };
 
   return (
     <div className="space-y-6">

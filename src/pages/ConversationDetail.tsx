@@ -60,21 +60,25 @@ const ConversationDetail = () => {
     fetchCompanies();
     fetchIndividuals();
     if (id) {
+      console.log("ConversationDetail - Loading data for conversation:", id);
       fetchConversationReminders();
     }
   }, [fetchConversations, fetchCompanies, fetchIndividuals, id]);
 
   const conversation = conversations.find(c => c.id === id);
+  console.log("ConversationDetail - Found conversation:", conversation);
   
   // Get associated company
   const company = conversation?.companyId 
     ? companies.find(c => c.id === conversation.companyId) 
     : null;
+  console.log("ConversationDetail - Found company:", company);
   
   // Get associated individuals
   const conversationIndividuals = individuals.filter(i => 
     conversation?.individualIds?.includes(i.id)
   );
+  console.log("ConversationDetail - Found individuals:", conversationIndividuals);
 
   // Fetch creator info when conversation is loaded
   useEffect(() => {
