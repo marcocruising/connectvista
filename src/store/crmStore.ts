@@ -20,7 +20,7 @@ interface CRMState {
   // UI state
   searchQuery: string;
   selectedTags: string[];
-  selectedCreators: string[];
+  selectedCreator: string | null;
   isLoading: boolean;
   error: string | null;
   isLoadingReminders: boolean;
@@ -32,7 +32,7 @@ interface CRMState {
   // Actions
   setSearchQuery: (query: string) => void;
   setSelectedTags: (tagIds: string[]) => void;
-  setSelectedCreators: (creatorIds: string[]) => void;
+  setSelectedCreator: (creator: string | null) => void;
   clearError: () => void;
   
   // Data fetching
@@ -47,12 +47,12 @@ interface CRMState {
   updateTag: (id: string, tag: Partial<Tag>) => Promise<void>;
   deleteTag: (id: string) => Promise<void>;
   
-  addCompany: (company: Omit<Company, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<void>;
-  updateCompany: (id: string, company: Partial<Company>) => Promise<void>;
+  addCompany: (company: Omit<Company, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<Company>;
+  updateCompany: (id: string, company: Partial<Company>) => Promise<Company>;
   deleteCompany: (id: string) => Promise<void>;
   
-  addIndividual: (individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<void>;
-  updateIndividual: (id: string, individual: Partial<Individual>) => Promise<void>;
+  addIndividual: (individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<Individual>;
+  updateIndividual: (id: string, individual: Partial<Individual>) => Promise<Individual>;
   deleteIndividual: (id: string) => Promise<void>;
   
   addConversation: (conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>, tags: string[], individualIds: string[]) => Promise<Conversation>;
@@ -66,7 +66,7 @@ interface CRMState {
   
   // New functions
   updateIndividualWithTags: (individualId: string, tagIds: string[]) => Promise<void>;
-  updateCompanyWithTags: (id: string, tagIds: string[]) => Promise<void>;
+  updateCompanyWithTags: (id: string, tagIds: string[]) => Promise<Company>;
   
   // Reminder actions
   createReminder: (reminderData: Omit<Reminder, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -88,7 +88,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   reminders: [],
   searchQuery: '',
   selectedTags: [],
-  selectedCreators: [],
+  selectedCreator: null,
   isLoading: false,
   error: null,
   isLoadingReminders: false,
@@ -100,7 +100,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   // UI actions
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
-  setSelectedCreators: (creatorIds) => set({ selectedCreators: creatorIds }),
+  setSelectedCreator: (creator) => set({ selectedCreator: creator }),
   clearError: () => set({ error: null }),
 
   // Data fetching
@@ -506,12 +506,19 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   signInWithGoogle: async () => {
     try {
       set({ error: null, isLoading: true });
-      const data = await authService.signInWithGoogle();
-      set({ 
-        user: data.user,
-        isAuthenticated: true,
-        isLoading: false 
-      });
+      const response = await authService.signInWithGoogle();
+      // The response will contain a URL for OAuth redirect
+      if (response.url) {
+        // Store the current state before redirect
+        localStorage.setItem('preAuthState', JSON.stringify({
+          path: window.location.pathname,
+          search: window.location.search
+        }));
+        // Redirect to Google OAuth
+        window.location.href = response.url;
+      } else {
+        throw new Error('No OAuth URL received from Google sign-in');
+      }
     } catch (error) {
       set({ 
         error: error instanceof Error ? error.message : 'Failed to sign in with Google',
@@ -563,11 +570,11 @@ export const useFilteredCompanies = () => {
 };
 
 export const useFilteredConversations = () => {
-  const { conversations, companies, individuals, searchQuery, selectedTags, selectedCreators } = useCRMStore();
+  const { conversations, companies, individuals, searchQuery, selectedTags, selectedCreator } = useCRMStore();
   
   return React.useMemo(() => {
     // If no filters are active, return all conversations
-    if (searchQuery === '' && selectedTags.length === 0 && selectedCreators.length === 0) {
+    if (searchQuery === '' && selectedTags.length === 0 && !selectedCreator) {
       return conversations;
     }
     
@@ -627,39 +634,28 @@ export const useFilteredConversations = () => {
         selectedTags.length === 0 ||
         (conversation.tags?.some((tag) => selectedTags.includes(tag.id)) ?? false);
       
-      // Filter by selected creators
-      const matchesCreators =
-        selectedCreators.length === 0 ||
-        (conversation.created_by && selectedCreators.includes(conversation.created_by));
+      // Filter by selected creator
+      const matchesCreator = !selectedCreator || conversation.created_by === selectedCreator;
       
-      return matchesSearch && matchesTags && matchesCreators;
+      return matchesSearch && matchesTags && matchesCreator;
     });
-  }, [conversations, companies, individuals, searchQuery, selectedTags, selectedCreators]);
+  }, [conversations, companies, individuals, searchQuery, selectedTags, selectedCreator]);
 };
 
 const initializeStore = () => {
+  const store = useCRMStore.getState();
+  
   // Try to load cached data from localStorage first
   const cachedData = localStorage.getItem('crmData');
   if (cachedData) {
     const parsedData = JSON.parse(cachedData);
-    setConversations(parsedData.conversations || []);
-    setIndividuals(parsedData.individuals || []);
-    setCompanies(parsedData.companies || []);
+    store.fetchConversations();
+    store.fetchIndividuals();
+    store.fetchCompanies();
   }
   
   // Then fetch fresh data from the API
-  fetchAllData();
-};
-
-const fetchAllData = async () => {
-  const convos = await fetchConversations();
-  const indivs = await fetchIndividuals();
-  const comps = await fetchCompanies();
-  
-  // Cache the data in localStorage
-  localStorage.setItem('crmData', JSON.stringify({
-    conversations: convos,
-    individuals: indivs,
-    companies: comps
-  }));
+  store.fetchConversations();
+  store.fetchIndividuals();
+  store.fetchCompanies();
 };
