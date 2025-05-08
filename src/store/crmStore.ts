@@ -82,446 +82,499 @@ interface CRMState {
 // TODO: Replace with dynamic bucket selection logic in the future
 export const DEFAULT_BUCKET_ID = '6c83917d-12b8-4f1c-8be5-1b4403e5f5d4';
 
-export const useCRMStore = create<CRMState>((set, get) => ({
-  // Initial state
-  companies: [],
-  individuals: [],
-  conversations: [],
-  tags: [],
-  reminders: [],
-  searchQuery: '',
-  selectedTags: [],
-  selectedCreator: null,
-  isLoading: false,
-  error: null,
-  isLoadingReminders: false,
+// Add types for bucket
+export interface Bucket {
+  id: string;
+  name: string;
+  owner_id: string;
+  members: number;
+}
 
-  // Auth state
-  user: null,
-  isAuthenticated: false,
+export const useCRMStore = create<CRMState & {
+  currentBucketId: string | null;
+  setCurrentBucketId: (bucketId: string) => void;
+  buckets: Bucket[];
+  setBuckets: (buckets: Bucket[]) => void;
+  fetchBuckets: () => Promise<void>;
+}>(
+  (set, get) => ({
+    // Initial state
+    companies: [],
+    individuals: [],
+    conversations: [],
+    tags: [],
+    reminders: [],
+    searchQuery: '',
+    selectedTags: [],
+    selectedCreator: null,
+    isLoading: false,
+    error: null,
+    isLoadingReminders: false,
 
-  // UI actions
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
-  setSelectedCreator: (creator) => set({ selectedCreator: creator }),
-  clearError: () => set({ error: null }),
+    // Auth state
+    user: null,
+    isAuthenticated: false,
 
-  // Data fetching
-  fetchTags: async () => {
-    try {
-      set({ isLoading: true });
-      const tags = await tagService.getTags();
-      set({ tags, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
+    // UI actions
+    setSearchQuery: (query) => set({ searchQuery: query }),
+    setSelectedTags: (tagIds) => set({ selectedTags: tagIds }),
+    setSelectedCreator: (creator) => set({ selectedCreator: creator }),
+    clearError: () => set({ error: null }),
 
-  fetchCompanies: async (bucketId: string) => {
-    try {
-      set({ isLoading: true });
-      const companies = await companyService.getCompanies(bucketId);
-      set({ companies, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  fetchIndividuals: async (bucketId: string) => {
-    try {
-      set({ isLoading: true });
-      const individuals = await individualService.getIndividuals(bucketId);
-      set({ individuals, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  fetchConversations: async (bucketId: string = DEFAULT_BUCKET_ID) => {
-    try {
-      set({ isLoading: true, error: null });
-      const conversations = await conversationService.getConversations(bucketId);
-      set({ conversations, isLoading: false });
-      console.log("Fetched conversations in store:", conversations);
-    } catch (error) {
-      console.error("Error fetching conversations in store:", error);
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  fetchReminders: async () => {
-    set({ isLoadingReminders: true });
-    try {
-      const reminders = await reminderService.getReminders();
-      set({ reminders });
-    } catch (error) {
-      console.error("Error fetching reminders:", error);
-    } finally {
-      set({ isLoadingReminders: false });
-    }
-  },
-
-  // CRUD operations
-  addTag: async (tag) => {
-    try {
-      set({ isLoading: true });
-      const newTag = await tagService.createTag(tag);
-      set(state => ({
-        tags: [...state.tags, newTag],
-        isLoading: false
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  updateTag: async (id, tag) => {
-    try {
-      set({ isLoading: true });
-      const updatedTag = await tagService.updateTag(id, tag);
-      set(state => ({
-        tags: state.tags.map(t => t.id === id ? updatedTag : t),
-        isLoading: false
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  deleteTag: async (id) => {
-    try {
-      set({ isLoading: true });
-      await tagService.deleteTag(id);
-      set(state => ({
-        tags: state.tags.filter(t => t.id !== id),
-        isLoading: false
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  // Companies
-  addCompany: async (company) => {
-    try {
-      set({ isLoading: true });
-      const newCompany = await companyService.createCompany(company, DEFAULT_BUCKET_ID);
-      set(state => ({ 
-        companies: [...state.companies, newCompany], 
-        isLoading: false 
-      }));
-      return newCompany;
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  updateCompany: async (id, companyData) => {
-    try {
-      set({ isLoading: true });
-      const updatedCompany = await companyService.updateCompany(id, companyData, DEFAULT_BUCKET_ID);
-      set(state => ({
-        companies: state.companies.map(company => 
-          company.id === id ? updatedCompany : company
-        ),
-        isLoading: false
-      }));
-      return updatedCompany;
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  deleteCompany: async (id) => {
-    try {
-      set({ isLoading: true });
-      await companyService.deleteCompany(id, DEFAULT_BUCKET_ID);
-      set(state => ({
-        companies: state.companies.filter(company => company.id !== id),
-        isLoading: false
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  // Individuals
-  addIndividual: async (individual, bucketId) => {
-    try {
-      set({ isLoading: true });
-      // Extract tags to handle them separately
-      const { tags, ...individualData } = individual as any;
-      const newIndividual = await individualService.createIndividual(individualData, bucketId);
-      set(state => ({
-        individuals: [...state.individuals, newIndividual],
-        isLoading: false
-      }));
-      return newIndividual; // Return the new individual for tag handling
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  updateIndividual: async (id, individualData) => {
-    try {
-      set({ isLoading: true });
-      // Extract tags to handle them separately
-      const { tags, ...individual } = individualData as any;
-      
-      const updatedIndividual = await individualService.updateIndividual(id, individual);
-      
-      set(state => ({
-        individuals: state.individuals.map(ind => 
-          ind.id === id ? updatedIndividual : ind
-        ),
-        isLoading: false
-      }));
-      
-      return updatedIndividual;
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  deleteIndividual: async (id) => {
-    try {
-      set({ isLoading: true });
-      await individualService.deleteIndividual(id);
-      set(state => ({
-        individuals: state.individuals.filter(individual => individual.id !== id),
-        isLoading: false
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  // Conversations
-  addConversation: async (conversation, tagIds, individualIds, bucketId) => {
-    try {
-      set({ isLoading: true, error: null });
-      const conversationData = {
-        ...conversation,
-        tags: tagIds,
-        individualIds
-      };
-      console.log("Adding conversation in store:", conversationData);
-      const newConversation = await conversationService.createConversation(conversationData, bucketId);
-      set(state => ({
-        conversations: [...state.conversations, newConversation],
-        isLoading: false
-      }));
-      console.log("Added conversation in store:", newConversation);
-      return newConversation;
-    } catch (error) {
-      console.error("Error adding conversation in store:", error);
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  updateConversation: async (id, conversationData) => {
-    try {
-      set({ isLoading: true, error: null });
-      console.log("Updating conversation in store:", id, conversationData);
-      await conversationService.updateConversation(id, conversationData);
-      
-      // After updating in the database, refetch all conversations to ensure state is in sync
-      await get().fetchConversations(DEFAULT_BUCKET_ID);
-      
-      set({ isLoading: false });
-    } catch (error) {
-      console.error("Error updating conversation in store:", error);
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  deleteConversation: async (id) => {
-    try {
-      set({ isLoading: true, error: null });
-      console.log("Deleting conversation in store:", id);
-      await conversationService.deleteConversation(id);
-      set(state => ({
-        conversations: state.conversations.filter(conversation => conversation.id !== id),
-        isLoading: false
-      }));
-      console.log("Deleted conversation in store");
-    } catch (error) {
-      console.error("Error deleting conversation in store:", error);
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  // Auth actions
-  initializeAuth: async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const user = session?.user || null;
-      
-      set({ 
-        user,
-        isAuthenticated: !!user,
-        isLoading: false,
-        error: null
-      });
-    } catch (error) {
-      set({ 
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: 'Failed to initialize auth'
-      });
-    }
-  },
-
-  signIn: async (email: string, password: string) => {
-    try {
-      set({ isLoading: true });
-      const { user } = await authService.signIn(email, password);
-      set({ user, isAuthenticated: true, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  signOut: async () => {
-    try {
-      set({ isLoading: true });
-      await authService.signOut();
-      set({ user: null, isAuthenticated: false, isLoading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-    }
-  },
-
-  // New functions
-  updateIndividualWithTags: async (individualId: string, tagIds: string[]) => {
-    try {
-      // Get the tags from the state
-      const state = get();
-      const relevantTags = state.tags.filter(tag => tagIds.includes(tag.id));
-      
-      // Update the individual in the state to include these tags
-      set(state => ({
-        individuals: state.individuals.map(ind => 
-          ind.id === individualId 
-            ? { ...ind, tags: relevantTags }
-            : ind
-        )
-      }));
-    } catch (error) {
-      console.error('Error updating individual tags in store:', error);
-    }
-  },
-
-  updateCompanyWithTags: async (companyId, tagIds, bucketId = DEFAULT_BUCKET_ID) => {
-    try {
-      set({ isLoading: true });
-      await companyService.updateCompanyTags(companyId, tagIds, bucketId);
-      const updatedCompany = await companyService.getCompany(companyId, bucketId);
-      set(state => ({
-        companies: state.companies.map(company => 
-          company.id === companyId ? updatedCompany : company
-        ),
-        isLoading: false
-      }));
-      return updatedCompany;
-    } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
-      throw error;
-    }
-  },
-
-  // Reminder actions
-  createReminder: async (reminderData) => {
-    try {
-      const newReminder = await reminderService.createReminder(reminderData);
-      set((state) => ({
-        reminders: [...state.reminders, newReminder]
-      }));
-    } catch (error) {
-      console.error("Error creating reminder:", error);
-    }
-  },
-
-  updateReminder: async (id, reminderData) => {
-    try {
-      const updatedReminder = await reminderService.updateReminder(id, reminderData);
-      set((state) => ({
-        reminders: state.reminders.map(reminder => 
-          reminder.id === id ? updatedReminder : reminder
-        )
-      }));
-    } catch (error) {
-      console.error("Error updating reminder:", error);
-    }
-  },
-
-  deleteReminder: async (id) => {
-    try {
-      await reminderService.deleteReminder(id);
-      set((state) => ({
-        reminders: state.reminders.filter(reminder => reminder.id !== id)
-      }));
-    } catch (error) {
-      console.error("Error deleting reminder:", error);
-    }
-  },
-
-  markReminderComplete: async (id) => {
-    try {
-      const updatedReminder = await reminderService.markReminderAsComplete(id);
-      set((state) => ({
-        reminders: state.reminders.map(reminder => 
-          reminder.id === id ? updatedReminder : reminder
-        )
-      }));
-    } catch (error) {
-      console.error("Error marking reminder as complete:", error);
-    }
-  },
-
-  dismissReminder: async (id) => {
-    try {
-      const updatedReminder = await reminderService.dismissReminder(id);
-      set((state) => ({
-        reminders: state.reminders.map(reminder => 
-          reminder.id === id ? updatedReminder : reminder
-        )
-      }));
-    } catch (error) {
-      console.error("Error dismissing reminder:", error);
-    }
-  },
-
-  signInWithGoogle: async () => {
-    try {
-      set({ error: null, isLoading: true });
-      const response = await authService.signInWithGoogle();
-      // The response will contain a URL for OAuth redirect
-      if (response.url) {
-        // Store the current state before redirect
-        localStorage.setItem('preAuthState', JSON.stringify({
-          path: window.location.pathname,
-          search: window.location.search
-        }));
-        // Redirect to Google OAuth
-        window.location.href = response.url;
-      } else {
-        throw new Error('No OAuth URL received from Google sign-in');
+    // Data fetching
+    fetchTags: async () => {
+      try {
+        set({ isLoading: true });
+        const tags = await tagService.getTags();
+        set({ tags, isLoading: false });
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
       }
-    } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Failed to sign in with Google',
-        isLoading: false 
-      });
-    }
-  },
-}));
+    },
+
+    fetchCompanies: async (bucketId?: string) => {
+      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      try {
+        set({ isLoading: true });
+        const companies = await companyService.getCompanies(useBucketId);
+        set({ companies, isLoading: false });
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    fetchIndividuals: async (bucketId?: string) => {
+      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      try {
+        set({ isLoading: true });
+        const individuals = await individualService.getIndividuals(useBucketId);
+        set({ individuals, isLoading: false });
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    fetchConversations: async (bucketId?: string) => {
+      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      try {
+        set({ isLoading: true, error: null });
+        const conversations = await conversationService.getConversations(useBucketId);
+        set({ conversations, isLoading: false });
+        console.log("Fetched conversations in store:", conversations);
+      } catch (error) {
+        console.error("Error fetching conversations in store:", error);
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    fetchReminders: async () => {
+      set({ isLoadingReminders: true });
+      try {
+        const reminders = await reminderService.getReminders();
+        set({ reminders });
+      } catch (error) {
+        console.error("Error fetching reminders:", error);
+      } finally {
+        set({ isLoadingReminders: false });
+      }
+    },
+
+    // CRUD operations
+    addTag: async (tag) => {
+      try {
+        set({ isLoading: true });
+        const newTag = await tagService.createTag(tag);
+        set(state => ({
+          tags: [...state.tags, newTag],
+          isLoading: false
+        }));
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    updateTag: async (id, tag) => {
+      try {
+        set({ isLoading: true });
+        const updatedTag = await tagService.updateTag(id, tag);
+        set(state => ({
+          tags: state.tags.map(t => t.id === id ? updatedTag : t),
+          isLoading: false
+        }));
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    deleteTag: async (id) => {
+      try {
+        set({ isLoading: true });
+        await tagService.deleteTag(id);
+        set(state => ({
+          tags: state.tags.filter(t => t.id !== id),
+          isLoading: false
+        }));
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    // Companies
+    addCompany: async (company) => {
+      try {
+        set({ isLoading: true });
+        const newCompany = await companyService.createCompany(company, DEFAULT_BUCKET_ID);
+        set(state => ({ 
+          companies: [...state.companies, newCompany], 
+          isLoading: false 
+        }));
+        return newCompany;
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    updateCompany: async (id, companyData) => {
+      try {
+        set({ isLoading: true });
+        const updatedCompany = await companyService.updateCompany(id, companyData, DEFAULT_BUCKET_ID);
+        set(state => ({
+          companies: state.companies.map(company => 
+            company.id === id ? updatedCompany : company
+          ),
+          isLoading: false
+        }));
+        return updatedCompany;
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    deleteCompany: async (id) => {
+      try {
+        set({ isLoading: true });
+        await companyService.deleteCompany(id, DEFAULT_BUCKET_ID);
+        set(state => ({
+          companies: state.companies.filter(company => company.id !== id),
+          isLoading: false
+        }));
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    // Individuals
+    addIndividual: async (individual, bucketId) => {
+      try {
+        set({ isLoading: true });
+        // Extract tags to handle them separately
+        const { tags, ...individualData } = individual as any;
+        const newIndividual = await individualService.createIndividual(individualData, bucketId);
+        set(state => ({
+          individuals: [...state.individuals, newIndividual],
+          isLoading: false
+        }));
+        return newIndividual; // Return the new individual for tag handling
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    updateIndividual: async (id, individualData) => {
+      try {
+        set({ isLoading: true });
+        // Extract tags to handle them separately
+        const { tags, ...individual } = individualData as any;
+        
+        const updatedIndividual = await individualService.updateIndividual(id, individual);
+        
+        set(state => ({
+          individuals: state.individuals.map(ind => 
+            ind.id === id ? updatedIndividual : ind
+          ),
+          isLoading: false
+        }));
+        
+        return updatedIndividual;
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    deleteIndividual: async (id) => {
+      try {
+        set({ isLoading: true });
+        await individualService.deleteIndividual(id);
+        set(state => ({
+          individuals: state.individuals.filter(individual => individual.id !== id),
+          isLoading: false
+        }));
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    // Conversations
+    addConversation: async (conversation, tagIds, individualIds, bucketId) => {
+      try {
+        set({ isLoading: true, error: null });
+        const conversationData = {
+          ...conversation,
+          tags: tagIds,
+          individualIds
+        };
+        console.log("Adding conversation in store:", conversationData);
+        const newConversation = await conversationService.createConversation(conversationData, bucketId);
+        set(state => ({
+          conversations: [...state.conversations, newConversation],
+          isLoading: false
+        }));
+        console.log("Added conversation in store:", newConversation);
+        return newConversation;
+      } catch (error) {
+        console.error("Error adding conversation in store:", error);
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    updateConversation: async (id, conversationData) => {
+      try {
+        set({ isLoading: true, error: null });
+        console.log("Updating conversation in store:", id, conversationData);
+        await conversationService.updateConversation(id, conversationData);
+        
+        // After updating in the database, refetch all conversations to ensure state is in sync
+        await get().fetchConversations(DEFAULT_BUCKET_ID);
+        
+        set({ isLoading: false });
+      } catch (error) {
+        console.error("Error updating conversation in store:", error);
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    deleteConversation: async (id) => {
+      try {
+        set({ isLoading: true, error: null });
+        console.log("Deleting conversation in store:", id);
+        await conversationService.deleteConversation(id);
+        set(state => ({
+          conversations: state.conversations.filter(conversation => conversation.id !== id),
+          isLoading: false
+        }));
+        console.log("Deleted conversation in store");
+      } catch (error) {
+        console.error("Error deleting conversation in store:", error);
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    // Auth actions
+    initializeAuth: async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user || null;
+        
+        set({ 
+          user,
+          isAuthenticated: !!user,
+          isLoading: false,
+          error: null
+        });
+      } catch (error) {
+        set({ 
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: 'Failed to initialize auth'
+        });
+      }
+    },
+
+    signIn: async (email: string, password: string) => {
+      try {
+        set({ isLoading: true });
+        const { user } = await authService.signIn(email, password);
+        set({ user, isAuthenticated: true, isLoading: false });
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    signOut: async () => {
+      try {
+        set({ isLoading: true });
+        await authService.signOut();
+        set({ user: null, isAuthenticated: false, isLoading: false });
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+      }
+    },
+
+    // New functions
+    updateIndividualWithTags: async (individualId: string, tagIds: string[]) => {
+      try {
+        // Get the tags from the state
+        const state = get();
+        const relevantTags = state.tags.filter(tag => tagIds.includes(tag.id));
+        
+        // Update the individual in the state to include these tags
+        set(state => ({
+          individuals: state.individuals.map(ind => 
+            ind.id === individualId 
+              ? { ...ind, tags: relevantTags }
+              : ind
+          )
+        }));
+      } catch (error) {
+        console.error('Error updating individual tags in store:', error);
+      }
+    },
+
+    updateCompanyWithTags: async (companyId, tagIds, bucketId = DEFAULT_BUCKET_ID) => {
+      try {
+        set({ isLoading: true });
+        await companyService.updateCompanyTags(companyId, tagIds, bucketId);
+        const updatedCompany = await companyService.getCompany(companyId, bucketId);
+        set(state => ({
+          companies: state.companies.map(company => 
+            company.id === companyId ? updatedCompany : company
+          ),
+          isLoading: false
+        }));
+        return updatedCompany;
+      } catch (error) {
+        set({ error: (error as Error).message, isLoading: false });
+        throw error;
+      }
+    },
+
+    // Reminder actions
+    createReminder: async (reminderData) => {
+      try {
+        const newReminder = await reminderService.createReminder(reminderData);
+        set((state) => ({
+          reminders: [...state.reminders, newReminder]
+        }));
+      } catch (error) {
+        console.error("Error creating reminder:", error);
+      }
+    },
+
+    updateReminder: async (id, reminderData) => {
+      try {
+        const updatedReminder = await reminderService.updateReminder(id, reminderData);
+        set((state) => ({
+          reminders: state.reminders.map(reminder => 
+            reminder.id === id ? updatedReminder : reminder
+          )
+        }));
+      } catch (error) {
+        console.error("Error updating reminder:", error);
+      }
+    },
+
+    deleteReminder: async (id) => {
+      try {
+        await reminderService.deleteReminder(id);
+        set((state) => ({
+          reminders: state.reminders.filter(reminder => reminder.id !== id)
+        }));
+      } catch (error) {
+        console.error("Error deleting reminder:", error);
+      }
+    },
+
+    markReminderComplete: async (id) => {
+      try {
+        const updatedReminder = await reminderService.markReminderAsComplete(id);
+        set((state) => ({
+          reminders: state.reminders.map(reminder => 
+            reminder.id === id ? updatedReminder : reminder
+          )
+        }));
+      } catch (error) {
+        console.error("Error marking reminder as complete:", error);
+      }
+    },
+
+    dismissReminder: async (id) => {
+      try {
+        const updatedReminder = await reminderService.dismissReminder(id);
+        set((state) => ({
+          reminders: state.reminders.map(reminder => 
+            reminder.id === id ? updatedReminder : reminder
+          )
+        }));
+      } catch (error) {
+        console.error("Error dismissing reminder:", error);
+      }
+    },
+
+    signInWithGoogle: async () => {
+      try {
+        set({ error: null, isLoading: true });
+        const response = await authService.signInWithGoogle();
+        // The response will contain a URL for OAuth redirect
+        if (response.url) {
+          // Store the current state before redirect
+          localStorage.setItem('preAuthState', JSON.stringify({
+            path: window.location.pathname,
+            search: window.location.search
+          }));
+          // Redirect to Google OAuth
+          window.location.href = response.url;
+        } else {
+          throw new Error('No OAuth URL received from Google sign-in');
+        }
+      } catch (error) {
+        set({ 
+          error: error instanceof Error ? error.message : 'Failed to sign in with Google',
+          isLoading: false 
+        });
+      }
+    },
+
+    currentBucketId: localStorage.getItem('currentBucketId') || DEFAULT_BUCKET_ID,
+    setCurrentBucketId: (bucketId: string) => {
+      localStorage.setItem('currentBucketId', bucketId);
+      set({ currentBucketId: bucketId });
+    },
+    buckets: [],
+    setBuckets: (buckets: Bucket[]) => set({ buckets }),
+    fetchBuckets: async () => {
+      // Fetch buckets for the current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data, error } = await supabase
+        .from('buckets')
+        .select('id, name, owner_id, bucket_collaborators(count)')
+        .eq('owner_id', user.id)
+        .order('name', { ascending: true });
+      if (error) {
+        set({ error: error.message });
+        return;
+      }
+      // Map to Bucket type
+      const buckets = (data || []).map((b: any) => ({
+        id: b.id,
+        name: b.name,
+        owner_id: b.owner_id,
+        members: b.bucket_collaborators[0]?.count || 1
+      }));
+      set({ buckets });
+      // If no currentBucketId, set to first bucket
+      if (!get().currentBucketId && buckets.length > 0) {
+        get().setCurrentBucketId(buckets[0].id);
+      }
+    },
+  })
+);
 
 // Utility functions to filter data based on search query and tags
 export const useFilteredIndividuals = () => {
