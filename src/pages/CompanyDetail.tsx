@@ -24,6 +24,7 @@ import TagBadge from '@/components/shared/TagBadge';
 import { CompanyForm } from '@/components/forms/CompanyForm';
 import ConversationTimeline from '@/components/shared/ConversationTimeline';
 import { ConversationForm } from '@/components/forms/ConversationForm';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const CompanyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -46,7 +47,7 @@ const CompanyDetail = () => {
 
   useEffect(() => {
     fetchCompanies();
-    fetchIndividuals();
+    fetchIndividuals(DEFAULT_BUCKET_ID);
     fetchConversations();
     
     console.log("CompanyDetail - Loading data for company:", id);

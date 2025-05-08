@@ -2,12 +2,18 @@ import { supabase } from '@/lib/supabase';
 import { Conversation, Tag } from '@/types/crm';
 
 export const conversationService = {
-  async getConversations() {
+  async getConversations(bucketId: string) {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
       console.log("Fetching conversations from Supabase");
       
-      // Fetch conversations
-      const { data: conversationsData, error } = await supabase
+      // Fetch conversations for the current bucket
+      const { data: conversationsData, error: conversationsError } = await supabase
         .from('conversations')
         .select(`
           id,
@@ -19,54 +25,52 @@ export const conversationService = {
           company_id,
           created_at,
           updated_at,
-          created_by
+          created_by,
+          bucket_id
         `)
+        .eq('bucket_id', bucketId)
         .order('date', { ascending: false });
       
-      if (error) {
-        console.error("Error fetching conversations:", error);
-        throw error;
+      if (conversationsError) {
+        console.error("Error fetching conversations:", conversationsError);
+        throw new Error(`Failed to fetch conversations: ${conversationsError.message}`);
       }
 
-      console.log("Raw conversations data from Supabase:", conversationsData);
-      
-      // Fetch individual associations for all conversations
+      if (!conversationsData) {
+        return [];
+      }
+
+      // Fetch individual associations with proper error handling
       const { data: participantsData, error: participantsError } = await supabase
         .from('conversation_individuals')
         .select('conversation_id, individual_id');
       
       if (participantsError) {
         console.error("Error fetching conversation participants:", participantsError);
-        throw participantsError;
+        throw new Error(`Failed to fetch conversation participants: ${participantsError.message}`);
       }
 
-      console.log("Raw participants data from Supabase:", participantsData);
-      
-      // Fetch tag associations for all conversations
+      // Fetch tag associations with proper error handling
       const { data: tagsData, error: tagsError } = await supabase
         .from('conversation_tags')
         .select('conversation_id, tags!tag_id(*)');
       
       if (tagsError) {
         console.error("Error fetching conversation tags:", tagsError);
-        throw tagsError;
+        throw new Error(`Failed to fetch conversation tags: ${tagsError.message}`);
       }
 
-      console.log("Raw tags data from Supabase:", tagsData);
-      
-      // Process and combine the data
+      // Process and combine the data with null checks
       const conversations = conversationsData.map(conversation => {
-        // Get individual IDs for this conversation
         const individualIds = participantsData
-          .filter(p => p.conversation_id === conversation.id)
-          .map(p => p.individual_id);
+          ?.filter(p => p.conversation_id === conversation.id)
+          .map(p => p.individual_id) || [];
         
-        // Get tags for this conversation
         const tags = tagsData
-          .filter(t => t.conversation_id === conversation.id)
-          .flatMap(t => t.tags as unknown as Tag[]);
+          ?.filter(t => t.conversation_id === conversation.id)
+          .flatMap(t => t.tags as unknown as Tag[]) || [];
         
-        const processedConversation: Conversation = {
+        return {
           id: conversation.id,
           title: conversation.title,
           date: conversation.date,
@@ -74,18 +78,14 @@ export const conversationService = {
           companyId: conversation.company_id,
           nextSteps: conversation.next_steps,
           notes: conversation.notes,
-          individualIds: individualIds,
-          tags: tags,
+          individualIds,
+          tags,
           created_at: conversation.created_at,
           updated_at: conversation.updated_at,
           created_by: conversation.created_by
         };
-
-        console.log("Processed conversation:", processedConversation);
-        return processedConversation;
       });
       
-      console.log("Final processed conversations:", conversations);
       return conversations;
     } catch (error) {
       console.error("Error in getConversations:", error);
@@ -93,7 +93,7 @@ export const conversationService = {
     }
   },
 
-  async createConversation(conversationData) {
+  async createConversation(conversationData, bucketId: string) {
     try {
       console.log("Creating conversation with data:", conversationData);
       
@@ -102,12 +102,32 @@ export const conversationService = {
       // Extract fields for conversations table
       const { tags: tagIds, individualIds, companyId, nextSteps, notes, ...rest } = conversationData;
       
+      // Validate company and individuals are in the bucket
+      if (companyId) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('id, bucket_id')
+          .eq('id', companyId)
+          .eq('bucket_id', bucketId)
+          .maybeSingle();
+        if (companyError || !company) throw new Error('Company does not belong to this bucket');
+      }
+      if (individualIds && individualIds.length > 0) {
+        const { data: individuals, error: indError } = await supabase
+          .from('individuals')
+          .select('id, bucket_id')
+          .in('id', individualIds)
+          .eq('bucket_id', bucketId);
+        if (indError || !individuals || individuals.length !== individualIds.length) throw new Error('One or more individuals do not belong to this bucket');
+      }
+      
       const conversationRecord = {
         ...rest,
         company_id: companyId,
         next_steps: nextSteps,
         notes: notes || null,
-        created_by: user?.id
+        created_by: user?.id,
+        bucket_id: bucketId
       };
       
       // Create the conversation
@@ -176,12 +196,31 @@ export const conversationService = {
     }
   },
 
-  async updateConversation(id, conversationData) {
+  async updateConversation(id, conversationData, bucketId: string) {
     try {
       console.log("Updating conversation:", id, conversationData);
       
       // Extract fields for the main table
       const { tags: tagIds, individualIds, companyId, nextSteps, notes, ...rest } = conversationData;
+      
+      // Validate company and individuals are in the bucket
+      if (companyId) {
+        const { data: company, error: companyError } = await supabase
+          .from('companies')
+          .select('id, bucket_id')
+          .eq('id', companyId)
+          .eq('bucket_id', bucketId)
+          .maybeSingle();
+        if (companyError || !company) throw new Error('Company does not belong to this bucket');
+      }
+      if (individualIds && individualIds.length > 0) {
+        const { data: individuals, error: indError } = await supabase
+          .from('individuals')
+          .select('id, bucket_id')
+          .in('id', individualIds)
+          .eq('bucket_id', bucketId);
+        if (indError || !individuals || individuals.length !== individualIds.length) throw new Error('One or more individuals do not belong to this bucket');
+      }
       
       const conversationRecord = {
         ...rest,
@@ -196,6 +235,7 @@ export const conversationService = {
         .from('conversations')
         .update(conversationRecord)
         .eq('id', id)
+        .eq('bucket_id', bucketId)
         .select()
         .single();
       

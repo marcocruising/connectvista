@@ -32,14 +32,8 @@ const companySchema = z.object({
   website: z.string().optional(),
   description: z.string().optional(),
   industry: z.string().optional(),
-  size: z.enum(['', 'Small', 'Medium', 'Large', 'Enterprise'])
-       .transform(val => val === '' ? null : val)
-       .nullable()
-       .optional(),
-  type: z.enum(['', 'Investor', 'Customer', 'Partner', 'Vendor', 'Other'])
-       .transform(val => val === '' ? null : val)
-       .nullable()
-       .optional(),
+  size: z.enum(['Small', 'Medium', 'Large', 'Enterprise']).nullable().optional(),
+  type: z.enum(['Investor', 'Customer', 'Partner', 'Vendor', 'Other']).nullable().optional(),
 });
 
 type CompanyFormData = z.infer<typeof companySchema>;
@@ -48,6 +42,8 @@ interface CompanyFormProps {
   initialData?: CompanyFormData & { id?: string; tags?: any[] };
   onSuccess?: (newCompanyId: string) => void;
 }
+
+const DEFAULT_BUCKET_ID = '6c83917d-12b8-4f1c-8be5-1b4403e5f5d4'; // TODO: Replace with dynamic bucket selection
 
 export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
   const { 
@@ -79,11 +75,11 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
     resolver: zodResolver(companySchema),
     defaultValues: {
       name: initialData?.name || '',
-      website: initialData?.website || '',
-      description: initialData?.description || '',
-      industry: initialData?.industry || '',
-      size: initialData?.size || '',
-      type: initialData?.type || '',
+      website: initialData?.website || undefined,
+      description: initialData?.description || undefined,
+      industry: initialData?.industry || undefined,
+      size: initialData?.size || undefined,
+      type: initialData?.type || undefined,
     },
   });
 
@@ -94,23 +90,19 @@ export const CompanyForm = ({ initialData, onSuccess }: CompanyFormProps) => {
   const onSubmit = async (data: CompanyFormData) => {
     try {
       let companyId: string;
-      
+      // Ensure name is always present
+      const companyData = { ...data, name: data.name || '' };
       if (initialData?.id) {
-        const updatedCompany = await updateCompany(initialData.id, data);
+        const updatedCompany = await updateCompany(initialData.id, companyData);
         companyId = updatedCompany.id;
-        // Update company tags
-        await companyService.updateCompanyTags(companyId, selectedTagIds);
-        // Update the store
-        await updateCompanyWithTags(companyId, selectedTagIds);
+        await companyService.updateCompanyTags(companyId, selectedTagIds, DEFAULT_BUCKET_ID);
+        await updateCompanyWithTags(companyId, selectedTagIds, DEFAULT_BUCKET_ID);
       } else {
-        const newCompany = await addCompany(data);
+        const newCompany = await addCompany(companyData);
         companyId = newCompany.id;
-        // Add company tags
-        await companyService.updateCompanyTags(companyId, selectedTagIds);
-        // Update the store
-        await updateCompanyWithTags(companyId, selectedTagIds);
+        await companyService.updateCompanyTags(companyId, selectedTagIds, DEFAULT_BUCKET_ID);
+        await updateCompanyWithTags(companyId, selectedTagIds, DEFAULT_BUCKET_ID);
       }
-      
       onSuccess?.(companyId);
     } catch (error) {
       console.error('Failed to save company:', error);

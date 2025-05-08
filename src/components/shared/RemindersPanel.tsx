@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 export const RemindersPanel: React.FC = () => {
   const { 
@@ -33,9 +34,9 @@ export const RemindersPanel: React.FC = () => {
     const loadData = async () => {
       await Promise.all([
         fetchReminders(),
-        fetchConversations(),
-        fetchIndividuals(),
-        fetchCompanies()
+        fetchConversations(DEFAULT_BUCKET_ID),
+        fetchIndividuals(DEFAULT_BUCKET_ID),
+        fetchCompanies(DEFAULT_BUCKET_ID)
       ]);
     };
     

@@ -37,9 +37,10 @@ interface IndividualFormProps {
   initialData?: IndividualFormData & { id?: string; tags?: any[] };
   initialCompanyId?: string;
   onSuccess?: (newIndividualId: string) => void;
+  bucketId: string;
 }
 
-export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: IndividualFormProps) => {
+export const IndividualForm = ({ initialData, initialCompanyId, onSuccess, bucketId }: IndividualFormProps) => {
   const { 
     addIndividual, 
     updateIndividual, 
@@ -109,7 +110,11 @@ export const IndividualForm = ({ initialData, initialCompanyId, onSuccess }: Ind
         await updateIndividualWithTags(individualId, selectedTagIds);
       } else {
         // Create new individual
-        const newIndividual = await addIndividual(data);
+        const newIndividual = await addIndividual({
+          ...data,
+          first_name: data.first_name || '',
+          last_name: data.last_name || ''
+        }, bucketId);
         individualId = newIndividual.id;
         // Add individual tags
         await updateIndividualWithTags(individualId, selectedTagIds);

@@ -28,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { reminderService } from '@/services/reminderService';
 import { supabase } from '@/lib/supabase';
 import { Reminder } from '@/types/crm';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,9 +57,9 @@ const ConversationDetail = () => {
   const [creatorInfo, setCreatorInfo] = useState<any>(null);
 
   useEffect(() => {
-    fetchConversations();
-    fetchCompanies();
-    fetchIndividuals();
+    fetchConversations(DEFAULT_BUCKET_ID);
+    fetchCompanies(DEFAULT_BUCKET_ID);
+    fetchIndividuals(DEFAULT_BUCKET_ID);
     if (id) {
       console.log("ConversationDetail - Loading data for conversation:", id);
       fetchConversationReminders();
@@ -545,6 +546,7 @@ const ConversationDetail = () => {
               setSelectedConversation(null);
               fetchConversationReminders(); // Refresh reminders
             }}
+            bucketId={DEFAULT_BUCKET_ID}
           />
         </DialogContent>
       </Dialog>

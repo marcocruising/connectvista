@@ -6,7 +6,7 @@ export const calendarImportService = {
   /**
    * Import events from Google Calendar as conversations
    */
-  async importCalendarEvents(days = 30) {
+  async importCalendarEvents(days = 30, bucketId: string) {
     try {
       // Get calendar events
       const events = await googleAuthService.getCalendarEvents(days);
@@ -40,6 +40,7 @@ export const calendarImportService = {
             .from('conversations')
             .select('id')
             .eq('calendar_event_id', event.id)
+            .eq('bucket_id', bucketId)
             .maybeSingle();
           
           if (existingConvo) {
@@ -58,36 +59,75 @@ export const calendarImportService = {
             const email = attendee.email;
             const name = attendee.displayName || email.split('@')[0];
             
-            // Use our improved individual lookup
+            // Use our improved individual lookup (must be bucket-aware)
             let individual = await findIndividualByEmailOrName(email, name);
+            let company_id_for_attendee = null;
             
             if (!individual) {
-              // Create a new individual from this attendee
-              individual = await createIndividualFromAttendee(email, name);
-              
-              if (individual) {
-                results.attendeesCreated++;
+              // Create a new individual from this attendee (bucket-aware, no company_id direct set)
+              // TODO: Refactor createIndividualFromAttendee to support bucketId and join table
+              // For now, create individual in bucket, then link to company if found
+              const domain = email.split('@')[1];
+              if (domain) {
+                const { data: companyMatch } = await supabase
+                  .from('companies')
+                  .select('id')
+                  .ilike('website', `%${domain}%`)
+                  .eq('bucket_id', bucketId)
+                  .maybeSingle();
+                if (companyMatch) {
+                  company_id_for_attendee = companyMatch.id;
+                }
               }
+              // Create the new individual in the bucket
+              const { data: newIndividual, error: indError } = await supabase
+                .from('individuals')
+                .insert({
+                  name: name || email.split('@')[0],
+                  email: email,
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  created_by: user.id,
+                  bucket_id: bucketId
+                })
+                .select('id, name, email')
+                .single();
+              if (indError) {
+                results.errors.push(indError.message);
+                continue;
+              }
+              if (company_id_for_attendee) {
+                // Link individual to company in join table
+                await supabase.from('individual_companies').insert({
+                  individual_id: newIndividual.id,
+                  company_id: company_id_for_attendee,
+                  bucket_id: bucketId
+                });
+              }
+              individual = { ...newIndividual, company_id: company_id_for_attendee, name: newIndividual.name, email: newIndividual.email };
+              results.attendeesCreated++;
             } else {
               results.attendeesFound++;
+              // If the found individual has a company_id, use it for the conversation if not already set
+              if (individual.company_id) {
+                company_id_for_attendee = individual.company_id;
+              }
             }
             
             if (individual) {
               individualIds.push(individual.id);
-              
               // Use the company ID from the first found individual
-              if (!company_id && individual.company_id) {
-                company_id = individual.company_id;
+              if (!company_id && company_id_for_attendee) {
+                company_id = company_id_for_attendee;
               }
             }
           }
           
-          // Create the conversation - make sure to use the exact database column names
+          // Create the conversation in the bucket
           const newConversation = {
             title: event.summary || 'Calendar Event',
             date: event.start?.dateTime || event.start?.date,
             summary: event.description || '',
-            individual_ids: individualIds,
             company_id: company_id,
             calendar_event_id: event.id,
             calendar_link: event.htmlLink,
@@ -96,15 +136,28 @@ export const calendarImportService = {
             updated_at: new Date().toISOString(),
             created_by: user.id,
             notes: '',
-            next_steps: ''
+            next_steps: '',
+            bucket_id: bucketId
           };
           
-          const { error: insertError } = await supabase
+          const { data: convoData, error: insertError } = await supabase
             .from('conversations')
-            .insert(newConversation);
+            .insert(newConversation)
+            .select('id')
+            .single();
           
           if (insertError) {
-            throw new Error(`Failed to create conversation: ${insertError.message}`);
+            results.errors.push(insertError.message);
+            continue;
+          }
+          
+          // Link individuals to conversation
+          if (individualIds.length > 0) {
+            const associations = individualIds.map(indId => ({
+              conversation_id: convoData.id,
+              individual_id: indId
+            }));
+            await supabase.from('conversation_individuals').insert(associations);
           }
           
           results.imported++;

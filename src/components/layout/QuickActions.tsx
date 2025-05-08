@@ -71,7 +71,7 @@ const QuickActions: React.FC<QuickActionsProps> = ({
         </DialogHeader>
 
         {activeAction === 'individual' && (
-          <IndividualForm onSuccess={handleSuccess} />
+          <IndividualForm onSuccess={handleSuccess} bucketId={"REPLACE_WITH_REAL_BUCKET_ID"} />
         )}
         
         {activeAction === 'company' && (

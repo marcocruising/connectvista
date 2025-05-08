@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useFilteredConversations, useCRMStore } from '@/store/crmStore';
+import { useFilteredConversations, useCRMStore, DEFAULT_BUCKET_ID } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, Calendar, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
@@ -36,6 +36,9 @@ const Conversations = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { selectedTags, setSelectedTags } = useCRMStore();
   const [creatorUsers, setCreatorUsers] = useState<Record<string, any>>({});
+
+  // TODO: Replace this with real bucket selection logic
+  const currentBucketId = "REPLACE_WITH_REAL_BUCKET_ID";
 
   // Memoize the columns to prevent unnecessary re-renders
   const columns = useMemo(() => [
@@ -159,7 +162,7 @@ const Conversations = () => {
   // Fetch initial data only once
   useEffect(() => {
     fetchConversations();
-    fetchIndividuals();
+    fetchIndividuals(DEFAULT_BUCKET_ID);
   }, []); // Empty dependency array since we only want to fetch once
 
   // Fetch creator info only when conversations change
@@ -302,6 +305,7 @@ const Conversations = () => {
               setIsFormOpen(false);
               setSelectedConversation(null);
             }}
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>

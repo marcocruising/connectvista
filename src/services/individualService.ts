@@ -2,60 +2,83 @@ import { supabase } from '@/lib/supabase';
 import { Individual } from '@/types/crm';
 
 export const individualService = {
-  async getIndividuals() {
-    const { data, error } = await supabase
+  async getIndividuals(bucketId: string) {
+    // Fetch individuals in the bucket
+    const { data: individuals, error } = await supabase
       .from('individuals')
-      .select(`
-        *,
-        companies (*),
-        tags (*)
-      `)
+      .select('*')
+      .eq('bucket_id', bucketId)
       .order('last_name');
-    
     if (error) throw error;
-    return data as Individual[];
+    if (!individuals) return [];
+
+    // Fetch company relationships for these individuals
+    const individualIds = individuals.map(i => i.id);
+    let companiesByIndividual: Record<string, any[]> = {};
+    if (individualIds.length > 0) {
+      const { data: joins, error: joinError } = await supabase
+        .from('individual_companies')
+        .select('individual_id, company_id')
+        .in('individual_id', individualIds)
+        .eq('bucket_id', bucketId);
+      if (joinError) throw joinError;
+      // Group company_ids by individual_id
+      companiesByIndividual = joins.reduce((acc, row) => {
+        if (!acc[row.individual_id]) acc[row.individual_id] = [];
+        acc[row.individual_id].push(row.company_id);
+        return acc;
+      }, {});
+    }
+    // Attach companies to individuals
+    return individuals.map(i => ({
+      ...i,
+      companyIds: companiesByIndividual[i.id] || []
+    }));
   },
 
-  async createIndividual(individualData: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) {
+  async createIndividual(individualData: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>, bucketId: string, companyIds?: string[]) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
-      // Extract tags from the data (if present)
       const { tags, ...individual } = individualData as any;
-      
-      // Log what we're sending to Supabase
-      console.log('Creating individual with data:', { ...individual, created_by: user?.id });
-      
-      // Insert the individual without tags
+      // Remove company_id if present (deprecated)
+      const { company_id, ...rest } = individual;
+      // Insert the individual
       const { data, error } = await supabase
         .from('individuals')
-        .insert([{ ...individual, created_by: user?.id }])
+        .insert([{ ...rest, created_by: user?.id, bucket_id: bucketId }])
         .select()
         .single();
-      
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+      if (error) throw error;
+      // Link to companies via join table
+      if (companyIds && companyIds.length > 0) {
+        await this.linkIndividualToCompanies(data.id, companyIds, bucketId);
       }
-      
-      console.log('Individual created:', data);
-      
       // If tags were provided, add them
       if (tags && tags.length > 0) {
-        try {
-          await this.updateIndividualTags(data.id, tags);
-          console.log('Tags added to individual');
-        } catch (tagError) {
-          console.error('Error adding tags:', tagError);
-          throw tagError;
-        }
+        await this.updateIndividualTags(data.id, tags);
       }
-      
       return data as Individual;
     } catch (error) {
-      console.error('Error in createIndividual:', error);
       throw error;
     }
+  },
+
+  async linkIndividualToCompanies(individualId: string, companyIds: string[], bucketId: string) {
+    if (!companyIds.length) return;
+    const rows = companyIds.map(companyId => ({ individual_id: individualId, company_id: companyId, bucket_id: bucketId }));
+    // TODO: Handle deduplication if needed (Supabase JS does not support upsert option here)
+    const { error } = await supabase.from('individual_companies').insert(rows);
+    if (error) throw error;
+  },
+
+  async unlinkIndividualFromCompany(individualId: string, companyId: string, bucketId: string) {
+    const { error } = await supabase
+      .from('individual_companies')
+      .delete()
+      .eq('individual_id', individualId)
+      .eq('company_id', companyId)
+      .eq('bucket_id', bucketId);
+    if (error) throw error;
   },
 
   async updateIndividual(id: string, individualData: Partial<Individual>) {
@@ -120,7 +143,10 @@ export const individualService = {
       .eq('individual_id', individualId);
     
     if (error) throw error;
-  }
+  },
+
+  // Deprecated: company_id logic
+  // TODO: Remove all usage of company_id from individuals after migration is complete
 };
 
 /**

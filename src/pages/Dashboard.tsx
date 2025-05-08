@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
+import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore, DEFAULT_BUCKET_ID } from '@/store/crmStore';
 import { BarChart3, Building2, Calendar, MessageCircle, Users, Building } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
@@ -33,9 +33,9 @@ const Dashboard = () => {
       try {
         // Use Promise.all to fetch data in parallel for better performance
         await Promise.all([
-          fetchConversations(),
-          fetchIndividuals(),
-          fetchCompanies(),
+          fetchConversations(DEFAULT_BUCKET_ID),
+          fetchIndividuals(DEFAULT_BUCKET_ID),
+          fetchCompanies(DEFAULT_BUCKET_ID),
           fetchTags()
         ]);
       } catch (error) {

@@ -24,6 +24,7 @@ import TagBadge from '@/components/shared/TagBadge';
 import { IndividualForm } from '@/components/forms/IndividualForm';
 import ConversationTimeline from '@/components/shared/ConversationTimeline';
 import { ConversationForm } from '@/components/forms/ConversationForm';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const IndividualDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -45,7 +46,7 @@ const IndividualDetail = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
   useEffect(() => {
-    fetchIndividuals();
+    fetchIndividuals(DEFAULT_BUCKET_ID);
     fetchCompanies();
     fetchConversations();
     

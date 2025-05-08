@@ -45,11 +45,54 @@ CREATE POLICY "Users can view conversations they participate in"
     EXISTS (
       SELECT 1 FROM conversation_participants
       WHERE conversation_id = conversations.id
-      AND user_id = auth.uid()
+      AND individual_id IN (
+        SELECT id FROM individuals WHERE user_id = auth.uid()
+      )
     )
   );
 
 CREATE POLICY "Users can create conversations"
   ON conversations FOR INSERT
   TO authenticated
-  WITH CHECK (created_by = auth.uid()); 
+  WITH CHECK (created_by = auth.uid());
+
+-- Team Members policies
+CREATE POLICY "Users can view team members"
+  ON team_members FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can create team members"
+  ON team_members FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can update team members"
+  ON team_members FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can delete team members"
+  ON team_members FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+    )
+  ); 

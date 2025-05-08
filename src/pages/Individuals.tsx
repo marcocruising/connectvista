@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
+import { useFilteredIndividuals, useCRMStore, DEFAULT_BUCKET_ID } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
@@ -23,7 +23,7 @@ const Individuals = () => {
   const [selectedIndividual, setSelectedIndividual] = useState<Individual | null>(null);
 
   useEffect(() => {
-    fetchIndividuals();
+    fetchIndividuals(DEFAULT_BUCKET_ID);
   }, [fetchIndividuals]);
 
   const handleEdit = (individual: Individual) => {
@@ -171,6 +171,7 @@ const Individuals = () => {
               setIsFormOpen(false);
               setSelectedIndividual(null);
             }}
+            bucketId={DEFAULT_BUCKET_ID}
           />
         </DialogContent>
       </Dialog>

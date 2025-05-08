@@ -38,6 +38,7 @@ export interface Individual {
   updated_at: string;
   created_by: string;
   tags?: Tag[];
+  bucket_id?: string;
 }
 
 export interface Conversation {

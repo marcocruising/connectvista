@@ -37,9 +37,9 @@ interface CRMState {
   
   // Data fetching
   fetchTags: () => Promise<void>;
-  fetchCompanies: () => Promise<void>;
-  fetchIndividuals: () => Promise<void>;
-  fetchConversations: () => Promise<void>;
+  fetchCompanies: (bucketId: string) => Promise<void>;
+  fetchIndividuals: (bucketId: string) => Promise<void>;
+  fetchConversations: (bucketId: string) => Promise<void>;
   fetchReminders: () => Promise<void>;
   
   // CRUD operations
@@ -51,11 +51,11 @@ interface CRMState {
   updateCompany: (id: string, company: Partial<Company>) => Promise<Company>;
   deleteCompany: (id: string) => Promise<void>;
   
-  addIndividual: (individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>) => Promise<Individual>;
+  addIndividual: (individual: Omit<Individual, 'id' | 'created_at' | 'updated_at' | 'created_by'>, bucketId: string) => Promise<Individual>;
   updateIndividual: (id: string, individual: Partial<Individual>) => Promise<Individual>;
   deleteIndividual: (id: string) => Promise<void>;
   
-  addConversation: (conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>, tags: string[], individualIds: string[]) => Promise<Conversation>;
+  addConversation: (conversation: Omit<Conversation, 'id' | 'created_at' | 'updated_at' | 'created_by'>, tags: string[], individualIds: string[], bucketId: string) => Promise<Conversation>;
   updateConversation: (id: string, conversation: Partial<Conversation>) => Promise<void>;
   deleteConversation: (id: string) => Promise<void>;
   
@@ -66,7 +66,7 @@ interface CRMState {
   
   // New functions
   updateIndividualWithTags: (individualId: string, tagIds: string[]) => Promise<void>;
-  updateCompanyWithTags: (id: string, tagIds: string[]) => Promise<Company>;
+  updateCompanyWithTags: (companyId: string, tagIds: string[], bucketId?: string) => Promise<Company>;
   
   // Reminder actions
   createReminder: (reminderData: Omit<Reminder, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
@@ -78,6 +78,9 @@ interface CRMState {
   // Add signInWithGoogle to the interface
   signInWithGoogle: () => Promise<void>;
 }
+
+// TODO: Replace with dynamic bucket selection logic in the future
+export const DEFAULT_BUCKET_ID = '6c83917d-12b8-4f1c-8be5-1b4403e5f5d4';
 
 export const useCRMStore = create<CRMState>((set, get) => ({
   // Initial state
@@ -114,30 +117,30 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  fetchCompanies: async () => {
+  fetchCompanies: async (bucketId: string) => {
     try {
       set({ isLoading: true });
-      const companies = await companyService.getCompanies();
+      const companies = await companyService.getCompanies(bucketId);
       set({ companies, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
   },
 
-  fetchIndividuals: async () => {
+  fetchIndividuals: async (bucketId: string) => {
     try {
       set({ isLoading: true });
-      const individuals = await individualService.getIndividuals();
+      const individuals = await individualService.getIndividuals(bucketId);
       set({ individuals, isLoading: false });
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
     }
   },
 
-  fetchConversations: async () => {
+  fetchConversations: async (bucketId: string = DEFAULT_BUCKET_ID) => {
     try {
       set({ isLoading: true, error: null });
-      const conversations = await conversationService.getConversations();
+      const conversations = await conversationService.getConversations(bucketId);
       set({ conversations, isLoading: false });
       console.log("Fetched conversations in store:", conversations);
     } catch (error) {
@@ -202,39 +205,39 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   addCompany: async (company) => {
     try {
       set({ isLoading: true });
-      const newCompany = await companyService.createCompany(company);
+      const newCompany = await companyService.createCompany(company, DEFAULT_BUCKET_ID);
       set(state => ({ 
         companies: [...state.companies, newCompany], 
         isLoading: false 
       }));
-      return newCompany; // Return the new company for tag handling
+      return newCompany;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
-      throw error; // Re-throw to allow handling in the form
+      throw error;
     }
   },
 
   updateCompany: async (id, companyData) => {
     try {
       set({ isLoading: true });
-      const updatedCompany = await companyService.updateCompany(id, companyData);
+      const updatedCompany = await companyService.updateCompany(id, companyData, DEFAULT_BUCKET_ID);
       set(state => ({
         companies: state.companies.map(company => 
           company.id === id ? updatedCompany : company
         ),
         isLoading: false
       }));
-      return updatedCompany; // Return the updated company for tag handling
+      return updatedCompany;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
-      throw error; // Re-throw to allow handling in the form
+      throw error;
     }
   },
 
   deleteCompany: async (id) => {
     try {
       set({ isLoading: true });
-      await companyService.deleteCompany(id);
+      await companyService.deleteCompany(id, DEFAULT_BUCKET_ID);
       set(state => ({
         companies: state.companies.filter(company => company.id !== id),
         isLoading: false
@@ -245,20 +248,16 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   // Individuals
-  addIndividual: async (individual) => {
+  addIndividual: async (individual, bucketId) => {
     try {
       set({ isLoading: true });
       // Extract tags to handle them separately
       const { tags, ...individualData } = individual as any;
-      
-      const newIndividual = await individualService.createIndividual(individualData);
-      
-      // Add the new individual to state without tags initially
+      const newIndividual = await individualService.createIndividual(individualData, bucketId);
       set(state => ({
         individuals: [...state.individuals, newIndividual],
         isLoading: false
       }));
-      
       return newIndividual; // Return the new individual for tag handling
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
@@ -302,7 +301,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
   },
 
   // Conversations
-  addConversation: async (conversation, tagIds, individualIds) => {
+  addConversation: async (conversation, tagIds, individualIds, bucketId) => {
     try {
       set({ isLoading: true, error: null });
       const conversationData = {
@@ -311,7 +310,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         individualIds
       };
       console.log("Adding conversation in store:", conversationData);
-      const newConversation = await conversationService.createConversation(conversationData);
+      const newConversation = await conversationService.createConversation(conversationData, bucketId);
       set(state => ({
         conversations: [...state.conversations, newConversation],
         isLoading: false
@@ -332,7 +331,7 @@ export const useCRMStore = create<CRMState>((set, get) => ({
       await conversationService.updateConversation(id, conversationData);
       
       // After updating in the database, refetch all conversations to ensure state is in sync
-      await get().fetchConversations();
+      await get().fetchConversations(DEFAULT_BUCKET_ID);
       
       set({ isLoading: false });
     } catch (error) {
@@ -419,21 +418,17 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     }
   },
 
-  updateCompanyWithTags: async (id, tagIds) => {
+  updateCompanyWithTags: async (companyId, tagIds, bucketId = DEFAULT_BUCKET_ID) => {
     try {
       set({ isLoading: true });
-      
-      // Fetch the updated company with tags
-      const updatedCompany = await companyService.getCompany(id);
-      
-      // Update the company in the store
+      await companyService.updateCompanyTags(companyId, tagIds, bucketId);
+      const updatedCompany = await companyService.getCompany(companyId, bucketId);
       set(state => ({
         companies: state.companies.map(company => 
-          company.id === id ? updatedCompany : company
+          company.id === companyId ? updatedCompany : company
         ),
         isLoading: false
       }));
-      
       return updatedCompany;
     } catch (error) {
       set({ error: (error as Error).message, isLoading: false });
@@ -649,13 +644,13 @@ const initializeStore = () => {
   const cachedData = localStorage.getItem('crmData');
   if (cachedData) {
     const parsedData = JSON.parse(cachedData);
-    store.fetchConversations();
-    store.fetchIndividuals();
-    store.fetchCompanies();
+    store.fetchConversations(DEFAULT_BUCKET_ID);
+    store.fetchIndividuals(DEFAULT_BUCKET_ID);
+    store.fetchCompanies(DEFAULT_BUCKET_ID);
   }
   
   // Then fetch fresh data from the API
-  store.fetchConversations();
-  store.fetchIndividuals();
-  store.fetchCompanies();
+  store.fetchConversations(DEFAULT_BUCKET_ID);
+  store.fetchIndividuals(DEFAULT_BUCKET_ID);
+  store.fetchCompanies(DEFAULT_BUCKET_ID);
 };

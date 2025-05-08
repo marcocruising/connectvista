@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { IndividualForm } from '@/components/forms/IndividualForm';
 import { CompanyForm } from '@/components/forms/CompanyForm';
 import { TagForm } from '@/components/forms/TagForm';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const conversationSchema = z.object({
   title: z.string().optional(),
@@ -43,13 +44,15 @@ interface ConversationFormProps {
   initialCompanyId?: string;
   initialIndividualIds?: string[];
   onSuccess: () => void;
+  bucketId: string;
 }
 
 export const ConversationForm: React.FC<ConversationFormProps> = ({
   initialData,
   initialCompanyId,
   initialIndividualIds = [],
-  onSuccess
+  onSuccess,
+  bucketId
 }) => {
   const { 
     addConversation, 
@@ -134,7 +137,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
   // Fetch necessary data
   useEffect(() => {
     fetchCompanies();
-    fetchIndividuals();
+    fetchIndividuals(DEFAULT_BUCKET_ID);
     fetchTags();
   }, [fetchCompanies, fetchIndividuals, fetchTags]);
 
@@ -246,7 +249,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
         await updateConversation(initialData.id, formattedConversationData);
         conversationId = initialData.id;
       } else {
-        const newConversation = await addConversation(formattedConversationData);
+        const newConversation = await addConversation(formattedConversationData, selectedTagIds, selectedIndividualIds, bucketId);
         conversationId = newConversation.id;
       }
       
@@ -680,6 +683,7 @@ export const ConversationForm: React.FC<ConversationFormProps> = ({
           <IndividualForm 
             initialCompanyId={selectedCompanyId} 
             onSuccess={(newIndividualId) => handleIndividualCreated(newIndividualId)} 
+            bucketId={bucketId}
           />
         </DialogContent>
       </Dialog>

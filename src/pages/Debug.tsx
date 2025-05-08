@@ -9,6 +9,7 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const Debug = () => {
   const { 
@@ -23,9 +24,9 @@ const Debug = () => {
   } = useCRMStore();
 
   const refreshAll = () => {
-    fetchCompanies();
-    fetchIndividuals();
-    fetchConversations();
+    fetchCompanies(DEFAULT_BUCKET_ID);
+    fetchIndividuals(DEFAULT_BUCKET_ID);
+    fetchConversations(DEFAULT_BUCKET_ID);
     fetchTags();
   };
 

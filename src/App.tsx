@@ -12,7 +12,7 @@ import Conversations from "./pages/Conversations";
 import Tags from "./pages/Tags";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
-import { useCRMStore } from "./store/crmStore";
+import { useCRMStore, DEFAULT_BUCKET_ID } from "./store/crmStore";
 import CompanyDetail from './pages/CompanyDetail';
 import IndividualDetail from './pages/IndividualDetail';
 import ConversationDetail from './pages/ConversationDetail';
@@ -44,9 +44,9 @@ const App = () => {
   useEffect(() => {
     const initializeApp = async () => {
       await Promise.all([
-        fetchConversations(),
-        fetchIndividuals(),
-        fetchCompanies(),
+        fetchConversations(DEFAULT_BUCKET_ID),
+        fetchIndividuals(DEFAULT_BUCKET_ID),
+        fetchCompanies(DEFAULT_BUCKET_ID),
         fetchTags(),
         fetchReminders()
       ]);

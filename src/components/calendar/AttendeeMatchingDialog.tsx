@@ -9,6 +9,7 @@ import { useCRMStore } from '@/store/crmStore';
 import { Spinner } from '@/components/ui/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Check, X, UserPlus } from 'lucide-react';
+import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 type Attendee = {
   id: string;
@@ -43,7 +44,7 @@ export function AttendeeMatchingDialog({
     async function loadData() {
       setLoading(true);
       await Promise.all([
-        fetchIndividuals(), 
+        fetchIndividuals(DEFAULT_BUCKET_ID), 
         fetchCompanies()
       ]);
       
