@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFilteredCompanies, useFilteredConversations, useFilteredIndividuals, useCRMStore, DEFAULT_BUCKET_ID } from '@/store/crmStore';
 import { BarChart3, Building2, Calendar, MessageCircle, Users, Building } from 'lucide-react';
@@ -21,8 +21,11 @@ const Dashboard = () => {
     searchQuery,
     setSearchQuery,
     isAuthenticated,
-    currentBucketId
+    currentBucketId,
+    needsBucketOnboarding,
+    fetchBuckets
   } = useCRMStore();
+  const [isLoadingDashboard, setIsLoadingDashboard] = useState(true);
   const filteredConversations = useFilteredConversations();
   const recentConversations = [...filteredConversations]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -33,6 +36,7 @@ const Dashboard = () => {
     // Fetch all required data for the dashboard
     const loadAllData = async () => {
       try {
+        setIsLoadingDashboard(true);
         if (isAuthenticated && currentBucketId) {
           await Promise.all([
             fetchTags(),
@@ -43,16 +47,32 @@ const Dashboard = () => {
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
+      } finally {
+        setIsLoadingDashboard(false);
       }
     };
-    
     loadAllData();
   }, [fetchTags, fetchCompanies, fetchIndividuals, fetchConversations, isAuthenticated, currentBucketId]);
   
-  // Add a loading state that displays while data is being fetched
-  const isLoading = !conversations.length && !individuals.length && !companies.length;
-  
-  if (isLoading) {
+  // Onboarding UI for users with no buckets
+  if (needsBucketOnboarding) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Welcome to ConnectVista!</h2>
+          <p className="mb-4 text-gray-600">You don't have any buckets yet. To get started, create your personal workspace bucket.</p>
+          <button
+            className="bg-crm-blue text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+            onClick={async () => { await fetchBuckets(); }}
+          >
+            Create My Personal Bucket
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLoadingDashboard) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

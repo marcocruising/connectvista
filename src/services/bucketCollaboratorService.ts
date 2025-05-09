@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase';
 export const bucketCollaboratorService = {
   // Invite a member by email
   async inviteCollaborator(email: string, bucketId: string) {
+    if (!email || !email.trim()) throw new Error('Email is required to invite a collaborator');
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
     const { data, error } = await supabase
@@ -10,7 +11,7 @@ export const bucketCollaboratorService = {
       .insert([
         {
           bucket_id: bucketId,
-          email,
+          email: email.trim(),
           role: 'member',
           status: 'pending',
           invited_by: user.id,
