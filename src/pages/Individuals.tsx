@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useFilteredIndividuals, useCRMStore, DEFAULT_BUCKET_ID } from '@/store/crmStore';
+import { useFilteredIndividuals, useCRMStore } from '@/store/crmStore';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { DataTable } from '@/components/shared/DataTable';
@@ -16,15 +16,17 @@ import SearchBar from '@/components/shared/SearchBar';
 const columnHelper = createColumnHelper<Individual>();
 
 const Individuals = () => {
-  const { companies, deleteIndividual, tags, setSelectedTags, selectedTags, fetchIndividuals } = useCRMStore();
+  const { companies, deleteIndividual, tags, setSelectedTags, selectedTags, fetchIndividuals, isAuthenticated, currentBucketId } = useCRMStore();
   const individuals = useFilteredIndividuals();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedIndividual, setSelectedIndividual] = useState<Individual | null>(null);
 
   useEffect(() => {
-    fetchIndividuals(DEFAULT_BUCKET_ID);
-  }, [fetchIndividuals]);
+    if (isAuthenticated && currentBucketId) {
+      fetchIndividuals(currentBucketId);
+    }
+  }, [isAuthenticated, currentBucketId, fetchIndividuals]);
 
   const handleEdit = (individual: Individual) => {
     setSelectedIndividual(individual);
@@ -74,11 +76,6 @@ const Individuals = () => {
         ) : '-';
       },
       size: 180,
-    }),
-    columnHelper.accessor('job_title', {
-      header: 'Title',
-      cell: (info) => info.getValue() || '-',
-      size: 150,
     }),
     columnHelper.accessor('tags', {
       header: 'Tags',
@@ -171,7 +168,7 @@ const Individuals = () => {
               setIsFormOpen(false);
               setSelectedIndividual(null);
             }}
-            bucketId={DEFAULT_BUCKET_ID}
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>

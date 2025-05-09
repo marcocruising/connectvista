@@ -27,20 +27,23 @@ import {
 
 const columnHelper = createColumnHelper<Company>();
 
-const DEFAULT_BUCKET_ID = '6c83917d-12b8-4f1c-8be5-1b4403e5f5d4'; // TODO: Replace with dynamic bucket selection
-
 const Companies = () => {
   const navigate = useNavigate();
-  const { fetchCompanies, deleteCompany, fetchTags } = useCRMStore();
+  const { isAuthenticated, currentBucketId, fetchCompanies, deleteCompany, fetchTags } = useCRMStore();
   const companies = useFilteredCompanies();
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
 
   useEffect(() => {
-    fetchCompanies(DEFAULT_BUCKET_ID);
+    if (isAuthenticated && currentBucketId) {
+      fetchCompanies(currentBucketId);
+    }
+  }, [isAuthenticated, currentBucketId, fetchCompanies]);
+
+  useEffect(() => {
     fetchTags();
-  }, [fetchCompanies, fetchTags]);
+  }, [fetchTags]);
 
   const handleEdit = (company: Company) => {
     setSelectedCompany(company);

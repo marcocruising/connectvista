@@ -24,7 +24,7 @@ import TagBadge from '@/components/shared/TagBadge';
 import { IndividualForm } from '@/components/forms/IndividualForm';
 import ConversationTimeline from '@/components/shared/ConversationTimeline';
 import { ConversationForm } from '@/components/forms/ConversationForm';
-import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
+import { Conversation } from '@/types/crm';
 
 const IndividualDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +36,9 @@ const IndividualDetail = () => {
     fetchIndividuals, 
     fetchCompanies, 
     fetchConversations,
-    deleteIndividual
+    deleteIndividual,
+    currentBucketId,
+    isAuthenticated
   } = useCRMStore();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -46,12 +48,13 @@ const IndividualDetail = () => {
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
   useEffect(() => {
-    fetchIndividuals(DEFAULT_BUCKET_ID);
-    fetchCompanies();
-    fetchConversations();
-    
-    console.log("IndividualDetail - Loading data for individual:", id);
-  }, [fetchIndividuals, fetchCompanies, fetchConversations, id]);
+    if (isAuthenticated && currentBucketId && id) {
+      fetchCompanies(currentBucketId);
+      fetchConversations(currentBucketId);
+      fetchIndividuals(currentBucketId);
+      console.log("IndividualDetail - Loading data for individual:", id);
+    }
+  }, [fetchCompanies, fetchConversations, fetchIndividuals, isAuthenticated, currentBucketId, id]);
 
   const individual = individuals.find(i => i.id === id);
   
@@ -250,6 +253,7 @@ const IndividualDetail = () => {
           <IndividualForm 
             initialData={individual} 
             onSuccess={() => setIsEditDialogOpen(false)} 
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>
@@ -293,8 +297,9 @@ const IndividualDetail = () => {
             onSuccess={() => {
               setIsConversationFormOpen(false);
               setSelectedConversation(null);
-              fetchConversations(); // Refresh conversations
+              fetchConversations(currentBucketId); // Refresh conversations
             }}
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>

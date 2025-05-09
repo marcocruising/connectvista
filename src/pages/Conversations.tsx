@@ -161,8 +161,7 @@ const Conversations = () => {
 
   // Fetch initial data only once
   useEffect(() => {
-    fetchConversations();
-    fetchIndividuals(DEFAULT_BUCKET_ID);
+    // Remove fetchConversations() on load or before authentication
   }, []); // Empty dependency array since we only want to fetch once
 
   // Fetch creator info only when conversations change

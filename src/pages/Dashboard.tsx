@@ -19,7 +19,9 @@ const Dashboard = () => {
     fetchTags,
     tags,
     searchQuery,
-    setSearchQuery
+    setSearchQuery,
+    isAuthenticated,
+    currentBucketId
   } = useCRMStore();
   const filteredConversations = useFilteredConversations();
   const recentConversations = [...filteredConversations]
@@ -31,20 +33,21 @@ const Dashboard = () => {
     // Fetch all required data for the dashboard
     const loadAllData = async () => {
       try {
-        // Use Promise.all to fetch data in parallel for better performance
-        await Promise.all([
-          fetchConversations(DEFAULT_BUCKET_ID),
-          fetchIndividuals(DEFAULT_BUCKET_ID),
-          fetchCompanies(DEFAULT_BUCKET_ID),
-          fetchTags()
-        ]);
+        if (isAuthenticated && currentBucketId) {
+          await Promise.all([
+            fetchTags(),
+            fetchCompanies(currentBucketId),
+            fetchIndividuals(currentBucketId),
+            fetchConversations(currentBucketId)
+          ]);
+        }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       }
     };
     
     loadAllData();
-  }, [fetchConversations, fetchIndividuals, fetchCompanies, fetchTags]);
+  }, [fetchTags, fetchCompanies, fetchIndividuals, fetchConversations, isAuthenticated, currentBucketId]);
   
   // Add a loading state that displays while data is being fetched
   const isLoading = !conversations.length && !individuals.length && !companies.length;

@@ -8,6 +8,7 @@ import { authService } from '@/services/authService';
 import { reminderService } from '@/services/reminderService';
 import { supabase } from '@/lib/supabase';
 import React from 'react';
+import { bucketCollaboratorService } from '@/services/bucketCollaboratorService';
 
 interface CRMState {
   // Data
@@ -77,6 +78,14 @@ interface CRMState {
   
   // Add signInWithGoogle to the interface
   signInWithGoogle: () => Promise<void>;
+  
+  // Collaborators
+  collaborators: any[];
+  isLoadingCollaborators: boolean;
+  fetchCollaborators: (bucketId?: string) => Promise<void>;
+  inviteCollaborator: (email: string, bucketId?: string) => Promise<void>;
+  removeCollaborator: (collaboratorId: string) => Promise<void>;
+  leaveCurrentBucket: () => Promise<void>;
 }
 
 // TODO: Replace with dynamic bucket selection logic in the future
@@ -96,6 +105,7 @@ export const useCRMStore = create<CRMState & {
   buckets: Bucket[];
   setBuckets: (buckets: Bucket[]) => void;
   fetchBuckets: () => Promise<void>;
+  initializeBucketData: () => Promise<void>;
 }>(
   (set, get) => ({
     // Initial state
@@ -123,9 +133,11 @@ export const useCRMStore = create<CRMState & {
 
     // Data fetching
     fetchTags: async () => {
+      if (!get().isAuthenticated || !get().currentBucketId) return;
       try {
         set({ isLoading: true });
-        const tags = await tagService.getTags();
+        const bucketId = get().currentBucketId;
+        const tags = await tagService.getTags(bucketId);
         set({ tags, isLoading: false });
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
@@ -133,7 +145,8 @@ export const useCRMStore = create<CRMState & {
     },
 
     fetchCompanies: async (bucketId?: string) => {
-      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      if (!get().isAuthenticated || !(bucketId || get().currentBucketId)) return;
+      const useBucketId = bucketId || get().currentBucketId;
       try {
         set({ isLoading: true });
         const companies = await companyService.getCompanies(useBucketId);
@@ -144,7 +157,8 @@ export const useCRMStore = create<CRMState & {
     },
 
     fetchIndividuals: async (bucketId?: string) => {
-      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      if (!get().isAuthenticated || !(bucketId || get().currentBucketId)) return;
+      const useBucketId = bucketId || get().currentBucketId;
       try {
         set({ isLoading: true });
         const individuals = await individualService.getIndividuals(useBucketId);
@@ -155,7 +169,8 @@ export const useCRMStore = create<CRMState & {
     },
 
     fetchConversations: async (bucketId?: string) => {
-      const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+      if (!get().isAuthenticated || !(bucketId || get().currentBucketId)) return;
+      const useBucketId = bucketId || get().currentBucketId;
       try {
         set({ isLoading: true, error: null });
         const conversations = await conversationService.getConversations(useBucketId);
@@ -168,9 +183,11 @@ export const useCRMStore = create<CRMState & {
     },
 
     fetchReminders: async () => {
+      if (!get().isAuthenticated || !get().currentBucketId) return;
       set({ isLoadingReminders: true });
       try {
-        const reminders = await reminderService.getReminders();
+        const bucketId = get().currentBucketId;
+        const reminders = await reminderService.getReminders(bucketId);
         set({ reminders });
       } catch (error) {
         console.error("Error fetching reminders:", error);
@@ -183,7 +200,8 @@ export const useCRMStore = create<CRMState & {
     addTag: async (tag) => {
       try {
         set({ isLoading: true });
-        const newTag = await tagService.createTag(tag);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const newTag = await tagService.createTag(tag, bucketId);
         set(state => ({
           tags: [...state.tags, newTag],
           isLoading: false
@@ -196,7 +214,8 @@ export const useCRMStore = create<CRMState & {
     updateTag: async (id, tag) => {
       try {
         set({ isLoading: true });
-        const updatedTag = await tagService.updateTag(id, tag);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const updatedTag = await tagService.updateTag(id, tag, bucketId);
         set(state => ({
           tags: state.tags.map(t => t.id === id ? updatedTag : t),
           isLoading: false
@@ -209,7 +228,8 @@ export const useCRMStore = create<CRMState & {
     deleteTag: async (id) => {
       try {
         set({ isLoading: true });
-        await tagService.deleteTag(id);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        await tagService.deleteTag(id, bucketId);
         set(state => ({
           tags: state.tags.filter(t => t.id !== id),
           isLoading: false
@@ -346,11 +366,10 @@ export const useCRMStore = create<CRMState & {
       try {
         set({ isLoading: true, error: null });
         console.log("Updating conversation in store:", id, conversationData);
-        await conversationService.updateConversation(id, conversationData);
-        
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        await conversationService.updateConversation(id, conversationData, bucketId);
         // After updating in the database, refetch all conversations to ensure state is in sync
-        await get().fetchConversations(DEFAULT_BUCKET_ID);
-        
+        await get().fetchConversations(bucketId);
         set({ isLoading: false });
       } catch (error) {
         console.error("Error updating conversation in store:", error);
@@ -410,7 +429,8 @@ export const useCRMStore = create<CRMState & {
       try {
         set({ isLoading: true });
         await authService.signOut();
-        set({ user: null, isAuthenticated: false, isLoading: false });
+        localStorage.removeItem('currentBucketId');
+        set({ user: null, isAuthenticated: false, isLoading: false, currentBucketId: null });
       } catch (error) {
         set({ error: (error as Error).message, isLoading: false });
       }
@@ -457,7 +477,8 @@ export const useCRMStore = create<CRMState & {
     // Reminder actions
     createReminder: async (reminderData) => {
       try {
-        const newReminder = await reminderService.createReminder(reminderData);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const newReminder = await reminderService.createReminder(reminderData, bucketId);
         set((state) => ({
           reminders: [...state.reminders, newReminder]
         }));
@@ -468,7 +489,8 @@ export const useCRMStore = create<CRMState & {
 
     updateReminder: async (id, reminderData) => {
       try {
-        const updatedReminder = await reminderService.updateReminder(id, reminderData);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const updatedReminder = await reminderService.updateReminder(id, reminderData, bucketId);
         set((state) => ({
           reminders: state.reminders.map(reminder => 
             reminder.id === id ? updatedReminder : reminder
@@ -481,7 +503,8 @@ export const useCRMStore = create<CRMState & {
 
     deleteReminder: async (id) => {
       try {
-        await reminderService.deleteReminder(id);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        await reminderService.deleteReminder(id, bucketId);
         set((state) => ({
           reminders: state.reminders.filter(reminder => reminder.id !== id)
         }));
@@ -492,7 +515,8 @@ export const useCRMStore = create<CRMState & {
 
     markReminderComplete: async (id) => {
       try {
-        const updatedReminder = await reminderService.markReminderAsComplete(id);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const updatedReminder = await reminderService.markReminderAsComplete(id, bucketId);
         set((state) => ({
           reminders: state.reminders.map(reminder => 
             reminder.id === id ? updatedReminder : reminder
@@ -505,7 +529,8 @@ export const useCRMStore = create<CRMState & {
 
     dismissReminder: async (id) => {
       try {
-        const updatedReminder = await reminderService.dismissReminder(id);
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        const updatedReminder = await reminderService.dismissReminder(id, bucketId);
         set((state) => ({
           reminders: state.reminders.map(reminder => 
             reminder.id === id ? updatedReminder : reminder
@@ -572,6 +597,75 @@ export const useCRMStore = create<CRMState & {
       if (!get().currentBucketId && buckets.length > 0) {
         get().setCurrentBucketId(buckets[0].id);
       }
+    },
+    collaborators: [],
+    isLoadingCollaborators: false,
+    
+    fetchCollaborators: async (bucketId?: string) => {
+      set({ isLoadingCollaborators: true });
+      try {
+        const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+        const collaborators = await bucketCollaboratorService.listCollaborators(useBucketId);
+        set({ collaborators });
+      } catch (error) {
+        set({ error: (error as Error).message });
+      } finally {
+        set({ isLoadingCollaborators: false });
+      }
+    },
+
+    inviteCollaborator: async (email: string, bucketId?: string) => {
+      set({ isLoadingCollaborators: true });
+      try {
+        const useBucketId = bucketId || get().currentBucketId || DEFAULT_BUCKET_ID;
+        await bucketCollaboratorService.inviteCollaborator(email, useBucketId);
+        // Refresh list after invite
+        await get().fetchCollaborators(useBucketId);
+      } catch (error) {
+        set({ error: (error as Error).message });
+      } finally {
+        set({ isLoadingCollaborators: false });
+      }
+    },
+
+    removeCollaborator: async (collaboratorId: string) => {
+      set({ isLoadingCollaborators: true });
+      try {
+        await bucketCollaboratorService.removeCollaborator(collaboratorId);
+        // Refresh list after removal
+        await get().fetchCollaborators();
+      } catch (error) {
+        set({ error: (error as Error).message });
+      } finally {
+        set({ isLoadingCollaborators: false });
+      }
+    },
+
+    leaveCurrentBucket: async () => {
+      set({ isLoadingCollaborators: true });
+      try {
+        const bucketId = get().currentBucketId || DEFAULT_BUCKET_ID;
+        await bucketCollaboratorService.leaveBucket(bucketId);
+        // Optionally, you may want to refresh buckets or redirect user
+        await get().fetchCollaborators(bucketId);
+      } catch (error) {
+        set({ error: (error as Error).message });
+      } finally {
+        set({ isLoadingCollaborators: false });
+      }
+    },
+
+    // New function to initialize bucket data after login
+    initializeBucketData: async () => {
+      const { isAuthenticated, currentBucketId } = get();
+      if (!isAuthenticated || !currentBucketId) return;
+      await Promise.all([
+        get().fetchTags(),
+        get().fetchCompanies(currentBucketId),
+        get().fetchIndividuals(currentBucketId),
+        get().fetchConversations(currentBucketId),
+        get().fetchReminders(),
+      ]);
     },
   })
 );
@@ -688,22 +782,4 @@ export const useFilteredConversations = () => {
       return matchesSearch && matchesTags && matchesCreator;
     });
   }, [conversations, companies, individuals, searchQuery, selectedTags, selectedCreator]);
-};
-
-const initializeStore = () => {
-  const store = useCRMStore.getState();
-  
-  // Try to load cached data from localStorage first
-  const cachedData = localStorage.getItem('crmData');
-  if (cachedData) {
-    const parsedData = JSON.parse(cachedData);
-    store.fetchConversations(DEFAULT_BUCKET_ID);
-    store.fetchIndividuals(DEFAULT_BUCKET_ID);
-    store.fetchCompanies(DEFAULT_BUCKET_ID);
-  }
-  
-  // Then fetch fresh data from the API
-  store.fetchConversations(DEFAULT_BUCKET_ID);
-  store.fetchIndividuals(DEFAULT_BUCKET_ID);
-  store.fetchCompanies(DEFAULT_BUCKET_ID);
 };

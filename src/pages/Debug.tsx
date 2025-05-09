@@ -9,7 +9,6 @@ import {
   CardTitle 
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
 
 const Debug = () => {
   const { 
@@ -20,14 +19,18 @@ const Debug = () => {
     fetchCompanies, 
     fetchIndividuals, 
     fetchConversations,
-    fetchTags
+    fetchTags,
+    isAuthenticated,
+    currentBucketId
   } = useCRMStore();
 
   const refreshAll = () => {
-    fetchCompanies(DEFAULT_BUCKET_ID);
-    fetchIndividuals(DEFAULT_BUCKET_ID);
-    fetchConversations(DEFAULT_BUCKET_ID);
-    fetchTags();
+    if (isAuthenticated && currentBucketId) {
+      fetchCompanies(currentBucketId);
+      fetchIndividuals(currentBucketId);
+      fetchConversations(currentBucketId);
+      fetchTags();
+    }
   };
 
   return (

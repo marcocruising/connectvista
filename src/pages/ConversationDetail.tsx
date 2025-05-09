@@ -27,8 +27,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { reminderService } from '@/services/reminderService';
 import { supabase } from '@/lib/supabase';
-import { Reminder } from '@/types/crm';
-import { DEFAULT_BUCKET_ID } from '@/store/crmStore';
+import { Reminder, Conversation } from '@/types/crm';
 
 const ConversationDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -43,7 +42,9 @@ const ConversationDetail = () => {
     deleteConversation,
     markReminderComplete,
     dismissReminder,
-    fetchReminders
+    fetchReminders,
+    currentBucketId,
+    isAuthenticated
   } = useCRMStore();
   
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -57,14 +58,14 @@ const ConversationDetail = () => {
   const [creatorInfo, setCreatorInfo] = useState<any>(null);
 
   useEffect(() => {
-    fetchConversations(DEFAULT_BUCKET_ID);
-    fetchCompanies(DEFAULT_BUCKET_ID);
-    fetchIndividuals(DEFAULT_BUCKET_ID);
-    if (id) {
+    if (id && isAuthenticated && currentBucketId) {
       console.log("ConversationDetail - Loading data for conversation:", id);
       fetchConversationReminders();
+      fetchConversations(currentBucketId);
+      fetchCompanies(currentBucketId);
+      fetchIndividuals(currentBucketId);
     }
-  }, [fetchConversations, fetchCompanies, fetchIndividuals, id]);
+  }, [id, isAuthenticated, currentBucketId]);
 
   const conversation = conversations.find(c => c.id === id);
   console.log("ConversationDetail - Found conversation:", conversation);
@@ -506,6 +507,7 @@ const ConversationDetail = () => {
           <ConversationForm 
             initialData={conversation} 
             onSuccess={() => setIsEditDialogOpen(false)} 
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>
@@ -546,7 +548,7 @@ const ConversationDetail = () => {
               setSelectedConversation(null);
               fetchConversationReminders(); // Refresh reminders
             }}
-            bucketId={DEFAULT_BUCKET_ID}
+            bucketId={currentBucketId}
           />
         </DialogContent>
       </Dialog>

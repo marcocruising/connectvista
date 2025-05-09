@@ -53,7 +53,7 @@ export const conversationService = {
       // Fetch tag associations with proper error handling
       const { data: tagsData, error: tagsError } = await supabase
         .from('conversation_tags')
-        .select('conversation_id, tags!tag_id(*)');
+        .select('conversation_id, tags!tag_id(id, name, color)');
       
       if (tagsError) {
         console.error("Error fetching conversation tags:", tagsError);
